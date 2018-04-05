@@ -48,9 +48,9 @@ function EscherWrapper:authenticate()
     local api_key, err = escher:authenticate(request, key_db, mandatory_headers_to_sign)
 
     if not api_key then
-        return nil
+        return nil, err
     else
-        return api_key, err
+        return api_key
     end
 
 end

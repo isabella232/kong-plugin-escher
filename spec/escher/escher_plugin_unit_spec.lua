@@ -1,7 +1,7 @@
 local constants = require "kong.constants"
 local plugin_handler = require "kong.plugins.escher.handler"
 
-describe("wsse plugin", function()
+describe("escher plugin", function()
     local old_ngx = _G.ngx
     local mock_config= {
         anonymous = 'anonym123',
@@ -30,7 +30,10 @@ describe("wsse plugin", function()
                 end,
                 set_header = function(header_name, header_value)
                     ngx_req_headers[header_name] = header_value
-                end
+                end,
+                read_body = function() end,
+                get_method = function() end,
+                get_body_data = function() end,
             },
             ctx = {},
             header = {},
@@ -38,7 +41,8 @@ describe("wsse plugin", function()
             say = function(...) end,
             exit = function(...) end,
             var = {
-                request_id = 123
+                request_id = 123,
+                request_uri = "request_uri",
             }
         }
 
@@ -57,6 +61,11 @@ describe("wsse plugin", function()
             assert.are.equal(true, ngx.req.get_headers()[constants.HEADERS.ANONYMOUS])
         end)
 
+        it("set anonymous header to nil when x-ems-auth header exists", function()
+            ngx.req.set_header("X-EMS-AUTH", "some escher header string")
+            handler:access(mock_config)
+            assert.are.equal(nil, ngx.req.get_headers()[constants.HEADERS.ANONYMOUS])
+        end)
 
     end)
 
