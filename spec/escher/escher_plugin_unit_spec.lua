@@ -1,11 +1,11 @@
 local constants = require "kong.constants"
 local plugin_handler = require "kong.plugins.escher.handler"
+local ConsumerDb = require "kong.plugins.escher.consumer_db"
 
 describe("escher plugin", function()
     local old_ngx = _G.ngx
     local mock_config= {
-        anonymous = 'anonym123',
-        timeframe_validation_treshhold_in_minutes = 5
+        anonymous = 'anonym123'
     }
     local handler
 
@@ -20,6 +20,14 @@ describe("escher plugin", function()
         custom_id = '',
         username = 'test'
     }
+
+    ConsumerDb.find_by_id = function(consumer_id, anonymous)
+        if consumer_id == 'anonym123' then
+            return anonymous_consumer
+        else
+            return test_consumer
+        end
+    end
 
     before_each(function()
         local ngx_req_headers = {}
@@ -54,6 +62,10 @@ describe("escher plugin", function()
         handler = plugin_handler()
     end)
 
+    after_each(function()
+        _G.ngx = old_ngx
+    end)
+
     describe("#access", function()
 
         it("set anonymous header to true when request not has x-ems-auth header", function()
@@ -65,6 +77,12 @@ describe("escher plugin", function()
             ngx.req.set_header("X-EMS-AUTH", "some escher header string")
             handler:access(mock_config)
             assert.are.equal(nil, ngx.req.get_headers()[constants.HEADERS.ANONYMOUS])
+        end)
+
+        it("set anonymous consumer on ngx context and not set credentials when X-EMS-AUTH header was not found", function()
+            handler:access(mock_config)
+            assert.are.equal(anonymous_consumer, ngx.ctx.authenticated_consumer)
+            assert.are.equal(nil, ngx.ctx.authenticated_credential)
         end)
 
     end)
