@@ -1,4 +1,5 @@
 local helpers = require "spec.helpers"
+local cjson = require "cjson"
 local Escher = require "escher"
 
 describe("Plugin: escher (access)", function()
@@ -43,6 +44,48 @@ describe("Plugin: escher (access)", function()
         if admin_client then admin_client:close() end
     end)
 
+    describe("Admin API", function()
+        it("registered the plugin globally", function()
+            local res = assert(admin_client:send {
+                method = "GET",
+                path = "/plugins/" .. plugin.id,
+            })
+            local body = assert.res_status(200, res)
+            local json = cjson.decode(body)
+
+            assert.is_table(json)
+            assert.is_not.falsy(json.enabled)
+        end)
+
+        it("registered the plugin for the api", function()
+            local res = assert(admin_client:send {
+                method = "GET",
+                path = "/plugins/" ..plugin.id,
+            })
+            local body = assert.res_status(200, res)
+            local json = cjson.decode(body)
+            assert.is_equal(api_id, json.api_id)
+        end)
+
+        it("should create a new escher key for the given consumer", function()
+          local res = assert(admin_client:send {
+            method = "POST",
+            path = "/consumers/test/escher_key/",
+            body = {
+              key = 'test_key',
+              secret = 'test_secret'
+            },
+            headers = {
+              ["Content-Type"] = "application/json"
+            }
+          })
+
+          local body = assert.res_status(201, res)
+          local json = cjson.decode(body)
+          assert.is_equal('test_key', json.key)
+          assert.is_equal('test_secret', json.secret)
+        end)
+    end)
 
     describe("Authentication", function()
         local current_date = os.date("!%Y%m%dT%H%M%SZ")
