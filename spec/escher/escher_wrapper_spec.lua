@@ -1,5 +1,6 @@
 local EscherWrapper =  require "kong.plugins.escher.escher_wrapper"
 local Escher = require "escher"
+local KeyDb = require "kong.plugins.escher.key_db"
 
 describe("escher wrapper", function()
 
@@ -25,6 +26,13 @@ describe("escher wrapper", function()
         },
 
     }
+
+    KeyDb.find_by_key = function(key_name)
+        if key_name == 'test_key' then
+            return "test_secret"
+        end
+    end
+
     local escher_wrapper = EscherWrapper(ngx_mock)
 
     local current_date = os.date("!%Y%m%dT%H%M%SZ")

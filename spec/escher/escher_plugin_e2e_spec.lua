@@ -25,6 +25,7 @@ describe("Plugin: escher (access)", function()
             username = "test"
         })
 
+
         assert(helpers.start_kong(dev_env))
     end)
 
@@ -115,6 +116,18 @@ describe("Plugin: escher (access)", function()
         end)
 
         it("responds with status 200 when X-EMS-AUTH header is valid", function()
+            assert(admin_client:send {
+                method = "POST",
+                path = "/consumers/test/escher_key/",
+                body = {
+                    key = 'test_key',
+                    secret = 'test_secret'
+                },
+                headers = {
+                    ["Content-Type"] = "application/json"
+                }
+            })
+
             local res = assert(client:send {
                 method = "GET",
                 path = "/request",

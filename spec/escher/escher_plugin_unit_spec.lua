@@ -1,6 +1,7 @@
 local constants = require "kong.constants"
 local plugin_handler = require "kong.plugins.escher.handler"
 local ConsumerDb = require "kong.plugins.escher.consumer_db"
+local KeyDb = require "kong.plugins.escher.key_db"
 
 describe("escher plugin", function()
     local old_ngx = _G.ngx
@@ -26,6 +27,12 @@ describe("escher plugin", function()
             return anonymous_consumer
         else
             return test_consumer
+        end
+    end
+
+    KeyDb.find_by_key = function(key_name)
+        if key_name == 'test_key' then
+            return "test_secret"
         end
     end
 

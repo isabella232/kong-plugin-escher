@@ -1,5 +1,6 @@
 local Object = require "classic"
 local Escher = require "escher"
+local KeyDb = require "kong.plugins.escher.key_db"
 
 local EscherWrapper = Object:extend()
 
@@ -47,7 +48,7 @@ function EscherWrapper:authenticate()
         ["body"] = self.ngx.req.get_body_data()
     }
 
-    local api_key, err = escher:authenticate(request, key_db, mandatory_headers_to_sign)
+    local api_key, err = escher:authenticate(request, KeyDb.find_by_key, mandatory_headers_to_sign)
 
     if not api_key then
         return nil, err
