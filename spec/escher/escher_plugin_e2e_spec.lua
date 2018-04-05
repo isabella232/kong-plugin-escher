@@ -57,6 +57,17 @@ describe("Plugin: escher (access)", function()
             date            = current_date,
         }
 
+        local config_wrong_api_key = {
+            algoPrefix      = 'EMS',
+            vendorKey       = 'EMS',
+            credentialScope = 'eu/suite/ems_request',
+            authHeaderName  = 'X-Ems-Auth',
+            dateHeaderName  = 'X-Ems-Date',
+            accessKeyId     = 'wrong_key',
+            apiSecret       = 'test_secret',
+            date            = current_date,
+        }
+
         local request_headers = {
             { "X-Ems-Date", current_date },
             { "Host", "test1.com" }
@@ -70,8 +81,10 @@ describe("Plugin: escher (access)", function()
         }
 
         local escher = Escher:new(config)
+        local escher_wrong_api_key = Escher:new(config_wrong_api_key)
 
         local ems_auth_header = escher:generateHeader(request, {})
+        local ems_auth_header_wrong_api_key = escher_wrong_api_key:generateHeader(request, {})
 
 
         it("responds with status 401 if request not has X-EMS-AUTH header and anonymous not allowed", function()
@@ -113,6 +126,20 @@ describe("Plugin: escher (access)", function()
             })
 
             assert.res_status(200, res)
+        end)
+
+        it("responds with status 401 when api key was not found", function()
+            local res = assert(client:send {
+                method = "GET",
+                path = "/request",
+                headers = {
+                    ["X-EMS-DATE"] = current_date,
+                    ["Host"] = "test1.com",
+                    ["X-EMS-AUTH"] = ems_auth_header_wrong_api_key
+                }
+            })
+
+            assert.res_status(401, res)
         end)
 
     end)

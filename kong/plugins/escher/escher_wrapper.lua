@@ -31,7 +31,9 @@ function EscherWrapper:authenticate()
     })
 
     local key_db = function(key_name)
-        return "test_secret"
+        if key_name == 'test_key' then
+            return "test_secret"
+        end
     end
 
     local headers, mandatory_headers_to_sign = parse_headers(self.ngx.req.get_headers())
