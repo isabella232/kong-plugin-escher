@@ -32,6 +32,12 @@ end
 function EscherHandler:access(conf)
     EscherHandler.super.access(self)
 
+    if ngx.ctx.authenticated_credential and conf.anonymous ~= nil then
+        -- we're already authenticated, and we're configured for using anonymous,
+        -- hence we're in a logical OR between auth methods and we're already done.
+        return
+    end
+
     local escher_header_string = ngx.req.get_headers()["X-EMS-AUTH"]
 
     if escher_header_string then
