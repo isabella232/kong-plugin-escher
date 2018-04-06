@@ -31,12 +31,6 @@ function EscherWrapper:authenticate()
         ["dateHeaderName"] = "X-Ems-Date",
     })
 
-    local key_db = function(key_name)
-        if key_name == 'test_key' then
-            return "test_secret"
-        end
-    end
-
     local headers, mandatory_headers_to_sign = parse_headers(self.ngx.req.get_headers())
 
     self.ngx.req.read_body()
@@ -48,12 +42,12 @@ function EscherWrapper:authenticate()
         ["body"] = self.ngx.req.get_body_data()
     }
 
-    local api_key, err = escher:authenticate(request, KeyDb.find_by_key, mandatory_headers_to_sign)
+    local api_key, err = escher:authenticate(request, KeyDb.find_secret_by_key, mandatory_headers_to_sign)
 
     if not api_key then
         return nil, err
     else
-        return api_key
+        return KeyDb.find_by_key(api_key)
     end
 
 end

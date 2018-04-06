@@ -2,6 +2,7 @@ local constants = require "kong.constants"
 local plugin_handler = require "kong.plugins.escher.handler"
 local ConsumerDb = require "kong.plugins.escher.consumer_db"
 local KeyDb = require "kong.plugins.escher.key_db"
+local EscherWrapper = require "kong.plugins.escher.escher_wrapper"
 
 describe("escher plugin", function()
     local old_ngx = _G.ngx
@@ -22,6 +23,12 @@ describe("escher plugin", function()
         username = 'test'
     }
 
+    local test_escher_key = {
+        key = 'test_key',
+        secret = 'test_secret',
+        consumer_id = '0001-1234'
+    }
+
     ConsumerDb.find_by_id = function(consumer_id, anonymous)
         if consumer_id == 'anonym123' then
             return anonymous_consumer
@@ -30,10 +37,14 @@ describe("escher plugin", function()
         end
     end
 
-    KeyDb.find_by_key = function(key_name)
+    KeyDb.find_secret_by_key = function(key_name)
         if key_name == 'test_key' then
             return "test_secret"
         end
+    end
+
+    EscherWrapper.authenticate = function()
+        return test_escher_key
     end
 
     before_each(function()
@@ -90,6 +101,22 @@ describe("escher plugin", function()
             handler:access(mock_config)
             assert.are.equal(anonymous_consumer, ngx.ctx.authenticated_consumer)
             assert.are.equal(nil, ngx.ctx.authenticated_credential)
+        end)
+
+        it("set consumer specific request headers when authentication was successful", function()
+            ngx.req.set_header("X-EMS-AUTH", "some escher header string")
+            handler:access(mock_config)
+            assert.are.equal('test123', ngx.req.get_headers()[constants.HEADERS.CONSUMER_ID])
+            assert.are.equal('', ngx.req.get_headers()[constants.HEADERS.CONSUMER_CUSTOM_ID])
+            assert.are.equal('test', ngx.req.get_headers()[constants.HEADERS.CONSUMER_USERNAME])
+            assert.are.equal('test_key', ngx.req.get_headers()[constants.HEADERS.CREDENTIAL_USERNAME])
+        end)
+
+        it("set consumer specific ngx context variables when authentication was successful", function()
+            ngx.req.set_header("X-EMS-AUTH", "some escher header string")
+            handler:access(mock_config)
+            assert.are.equal(test_consumer, ngx.ctx.authenticated_consumer)
+            assert.are.equal(test_escher_key, ngx.ctx.authenticated_credential)
         end)
 
     end)

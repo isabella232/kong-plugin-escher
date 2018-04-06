@@ -8,19 +8,19 @@ local EscherHandler = BasePlugin:extend()
 
 EscherHandler.PRIORITY = 1007
 
-local function set_consumer(consumer, api_key)
-    --ngx.req.set_header(constants.HEADERS.CONSUMER_ID, consumer.id)
-    --ngx.req.set_header(constants.HEADERS.CONSUMER_CUSTOM_ID, consumer.custom_id)
-    --ngx.req.set_header(constants.HEADERS.CONSUMER_USERNAME, consumer.username)
+local function set_consumer(consumer, escher_key)
+    ngx.req.set_header(constants.HEADERS.CONSUMER_ID, consumer.id)
+    ngx.req.set_header(constants.HEADERS.CONSUMER_CUSTOM_ID, consumer.custom_id)
+    ngx.req.set_header(constants.HEADERS.CONSUMER_USERNAME, consumer.username)
     ngx.ctx.authenticated_consumer = consumer
-    --
-    --if api_key then
-    --    ngx.req.set_header(constants.HEADERS.CREDENTIAL_USERNAME, api_key)
-    --    ngx.req.set_header(constants.HEADERS.ANONYMOUS, nil)
-    --    ngx.ctx.authenticated_credential = api_key
-    --else
+
+    if escher_key then
+        ngx.req.set_header(constants.HEADERS.CREDENTIAL_USERNAME, escher_key.key)
+        ngx.req.set_header(constants.HEADERS.ANONYMOUS, nil)
+        ngx.ctx.authenticated_credential = escher_key
+    else
         ngx.req.set_header(constants.HEADERS.ANONYMOUS, true)
-    --end
+    end
 end
 
 function EscherHandler:new()
@@ -34,13 +34,15 @@ function EscherHandler:access(conf)
 
     if escher_header_string then
         local escher = EscherWrapper(ngx)
-        local api_key, err = escher:authenticate()
+        local escher_key, err = escher:authenticate()
 
-        if not api_key then
+        if not escher_key then
             return responses.send(401, err)
         end
 
-        set_consumer({id = '7d11d371-1175-4159-b6b4-d77f2015e396', custom_id = nil, username = 'test'}, api_key)
+        local consumer = ConsumerDb.find_by_id(escher_key.consumer_id)
+
+        set_consumer(consumer, escher_key)
     elseif conf.anonymous == nil then
         local error_message = "X-EMS-AUTH header not found!"
         return responses.send(401, error_message)

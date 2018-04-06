@@ -27,9 +27,21 @@ describe("escher wrapper", function()
 
     }
 
-    KeyDb.find_by_key = function(key_name)
+    KeyDb.find_secret_by_key = function(key_name)
         if key_name == 'test_key' then
             return "test_secret"
+        end
+    end
+
+    local test_escher_key = {
+        key = 'test_key',
+        secret = 'test_secret',
+        consumer_id = '0001-1234'
+    }
+
+    KeyDb.find_by_key = function(key_name)
+        if key_name == 'test_key' then
+            return test_escher_key
         end
     end
 
@@ -121,7 +133,6 @@ describe("escher wrapper", function()
         end)
 
         it("should return with api_key when escher authentication was successful", function()
-            local expected_api_key = 'test_key'
             local headers = {
                 ["X-Ems-Date"] = current_date,
                 ["X-Ems-Auth"] = ems_auth_header,
@@ -130,7 +141,7 @@ describe("escher wrapper", function()
 
             set_headers(headers)
             local api_key, err = escher_wrapper:authenticate()
-            assert.are.equal(expected_api_key, api_key)
+            assert.are.equal(test_escher_key, api_key)
         end)
 
     end)
