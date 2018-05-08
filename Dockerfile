@@ -1,4 +1,4 @@
-FROM emarsys/kong-dev-docker:latest
+FROM emarsys/kong-dev-docker:03dcac138951fc470872105917a67b4655205495
 
 RUN yum install -y cmake gcc-c++ openssl-devel
 
