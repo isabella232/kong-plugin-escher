@@ -3,8 +3,6 @@ local cjson = require "cjson"
 local Escher = require "escher"
 
 describe("Plugin: escher (access)", function()
-    local client
-    local admin_client
     local dev_env = {
         custom_plugins = 'escher'
     }
@@ -34,19 +32,9 @@ describe("Plugin: escher (access)", function()
         helpers.stop_kong(nil)
     end)
 
-    before_each(function()
-        client = helpers.proxy_client()
-        admin_client = helpers.admin_client()
-    end)
-
-    after_each(function()
-        if client then client:close() end
-        if admin_client then admin_client:close() end
-    end)
-
     describe("Admin API", function()
         it("registered the plugin globally", function()
-            local res = assert(admin_client:send {
+            local res = assert(helpers.admin_client():send {
                 method = "GET",
                 path = "/plugins/" .. plugin.id,
             })
@@ -58,7 +46,7 @@ describe("Plugin: escher (access)", function()
         end)
 
         it("registered the plugin for the api", function()
-            local res = assert(admin_client:send {
+            local res = assert(helpers.admin_client():send {
                 method = "GET",
                 path = "/plugins/" ..plugin.id,
             })
@@ -68,7 +56,7 @@ describe("Plugin: escher (access)", function()
         end)
 
         it("should create a new escher key for the given consumer", function()
-          local res = assert(admin_client:send {
+          local res = assert(helpers.admin_client():send {
             method = "POST",
             path = "/consumers/test/escher_key/",
             body = {
@@ -85,6 +73,55 @@ describe("Plugin: escher (access)", function()
           assert.is_equal('test_key', json.key)
           assert.is_equal('test_secret', json.secret)
         end)
+
+        it("should be able to retrieve an escher key", function()
+            local create_call = assert(helpers.admin_client():send {
+              method = "POST",
+              path = "/consumers/test/escher_key/",
+              body = {
+                key = 'another_test_key',
+                secret = 'test_secret'
+              },
+              headers = {
+                ["Content-Type"] = "application/json"
+              }
+            })
+  
+            assert.res_status(201, create_call)
+
+            local retrieve_call = assert(helpers.admin_client():send {
+                method = "GET",
+                path = "/consumers/test/escher_key/another_test_key"
+              })
+
+            local body = assert.res_status(200, retrieve_call)
+            local json = cjson.decode(body)
+            assert.is_equal('another_test_key', json.key)
+            assert.is_equal(nil, json.secret)
+        end)
+
+        it("should be able to delete an escher key", function()
+            local create_call = assert(helpers.admin_client():send {
+              method = "POST",
+              path = "/consumers/test/escher_key/",
+              body = {
+                key = 'yet_another_test_key',
+                secret = 'test_secret'
+              },
+              headers = {
+                ["Content-Type"] = "application/json"
+              }
+            })
+  
+            assert.res_status(201, create_call)
+
+            local delete_call = assert(helpers.admin_client():send {
+                method = "DELETE",
+                path = "/consumers/test/escher_key/yet_another_test_key"
+              })
+
+            local body = assert.res_status(204, delete_call)
+          end)
     end)
 
     describe("Authentication", function()
@@ -132,7 +169,7 @@ describe("Plugin: escher (access)", function()
 
 
         it("responds with status 401 if request not has X-EMS-AUTH header and anonymous not allowed", function()
-            local res = assert(client:send {
+            local res = assert(helpers.proxy_client():send {
                 method = "GET",
                 path = "/request",
                 headers = {
@@ -145,7 +182,7 @@ describe("Plugin: escher (access)", function()
         end)
 
         it("responds with status 401 when X-EMS-AUTH header is invalid", function()
-            local res = assert(client:send {
+            local res = assert(helpers.proxy_client():send {
                 method = "GET",
                 path = "/request",
                 headers = {
@@ -159,7 +196,7 @@ describe("Plugin: escher (access)", function()
         end)
 
         it("responds with status 200 when X-EMS-AUTH header is valid", function()
-            assert(admin_client:send {
+            assert(helpers.admin_client():send {
                 method = "POST",
                 path = "/consumers/test/escher_key/",
                 body = {
@@ -171,7 +208,7 @@ describe("Plugin: escher (access)", function()
                 }
             })
 
-            local res = assert(client:send {
+            local res = assert(helpers.proxy_client():send {
                 method = "GET",
                 path = "/request",
                 headers = {
@@ -185,7 +222,7 @@ describe("Plugin: escher (access)", function()
         end)
 
         it("responds with status 401 when api key was not found", function()
-            local res = assert(client:send {
+            local res = assert(helpers.proxy_client():send {
                 method = "GET",
                 path = "/request",
                 headers = {
