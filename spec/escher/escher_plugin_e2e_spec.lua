@@ -17,7 +17,9 @@ describe("Plugin: escher (access)", function()
         plugin = assert(helpers.dao.plugins:insert {
             api_id = api1.id,
             name = "escher",
-            config = {}
+            config = {
+                encryption_key_path = "/secret.txt"
+            }
         })
 
         consumer = assert(helpers.dao.consumers:insert {
