@@ -27,7 +27,7 @@ describe("escher wrapper", function()
 
     }
 
-    KeyDb.find_secret_by_key = function(key_name)
+    KeyDb.find_secret_by_key = function(self, key_name)
         if key_name == 'test_key' then
             return "test_secret"
         end
@@ -39,13 +39,14 @@ describe("escher wrapper", function()
         consumer_id = '0001-1234'
     }
 
-    KeyDb.find_by_key = function(key_name)
+    KeyDb.find_by_key = function(self, key_name)
         if key_name == 'test_key' then
             return test_escher_key
         end
     end
 
-    local escher_wrapper = EscherWrapper(ngx_mock)
+    local key_db = KeyDb()
+    local escher_wrapper = EscherWrapper(ngx_mock, key_db)
 
     local current_date = os.date("!%Y%m%dT%H%M%SZ")
     local config = {

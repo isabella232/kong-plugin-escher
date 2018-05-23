@@ -37,12 +37,6 @@ describe("escher plugin", function()
         end
     end
 
-    KeyDb.find_secret_by_key = function(key_name)
-        if key_name == 'test_key' then
-            return "test_secret"
-        end
-    end
-
     EscherWrapper.authenticate = function()
         return test_escher_key
     end
