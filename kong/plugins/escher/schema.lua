@@ -9,6 +9,10 @@ local function check_user(anonymous)
 end
 
 local function ensure_file_exists(encryption_key_path)
+  if encryption_key_path == nil then
+    return true
+  end
+
   local file = io.open(encryption_key_path, "r")
 
   if file == nil then
@@ -24,6 +28,6 @@ return {
   no_consumer = true,
   fields = {
     anonymous = {type = "string", default = nil, func = check_user},
-    encryption_key_path = {type = "string", func = ensure_file_exists}
+    encryption_key_path = {type = "string", default = nil, func = ensure_file_exists}
   }
 }
