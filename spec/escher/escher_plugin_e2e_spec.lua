@@ -1,6 +1,7 @@
 local helpers = require "spec.helpers"
 local cjson = require "cjson"
 local Escher = require "escher"
+local TestHelper = require "spec.test_helper"
 
 describe("Plugin: escher (access)", function()
     local dev_env = {
@@ -59,27 +60,51 @@ describe("Plugin: escher (access)", function()
 
         it("should create a new escher key for the given consumer", function()
           local res = assert(helpers.admin_client():send {
-            method = "POST",
-            path = "/consumers/test/escher_key/",
-            body = {
-              key = 'test_key',
-              secret = 'test_secret'
-            },
-            headers = {
-              ["Content-Type"] = "application/json"
-            }
+              method = "POST",
+              path = "/consumers/" .. consumer.id .. "/escher_key/",
+              body = {
+                key = 'test_key',
+                secret = 'test_secret'
+              },
+              headers = {
+                ["Content-Type"] = "application/json"
+              }
           })
 
           local body = assert.res_status(201, res)
           local json = cjson.decode(body)
           assert.is_equal('test_key', json.key)
-          assert.is_equal('test_secret', json.secret)
+        end)
+
+        it("should create a new escher key with encrypted secret using salt from file", function()
+            local ecrypto = TestHelper.get_easy_crypto()
+
+            local secret = 'test_secret'
+            local res = assert(helpers.admin_client():send {
+                method = "POST",
+                path = "/consumers/" .. consumer.id .. "/escher_key/",
+                body = {
+                  key = 'test_key_v2',
+                  secret = secret
+                },
+                headers = {
+                  ["Content-Type"] = "application/json"
+                }
+            })
+
+            local body = assert.res_status(201, res)
+            local json = cjson.decode(body)
+            assert.is_equal('test_key_v2', json.key)
+
+            local encryption_key = TestHelper.get_salt_from_file(plugin.config.encryption_key_path)
+
+            assert.is_equal(secret, ecrypto:decrypt(encryption_key, json.secret))
         end)
 
         it("should be able to retrieve an escher key", function()
             local create_call = assert(helpers.admin_client():send {
               method = "POST",
-              path = "/consumers/test/escher_key/",
+              path = "/consumers/" .. consumer.id .. "/escher_key/",
               body = {
                 key = 'another_test_key',
                 secret = 'test_secret'
@@ -93,7 +118,7 @@ describe("Plugin: escher (access)", function()
 
             local retrieve_call = assert(helpers.admin_client():send {
                 method = "GET",
-                path = "/consumers/test/escher_key/another_test_key"
+                path = "/consumers/" .. consumer.id .. "/escher_key/another_test_key"
               })
 
             local body = assert.res_status(200, retrieve_call)
@@ -105,7 +130,7 @@ describe("Plugin: escher (access)", function()
         it("should be able to delete an escher key", function()
             local create_call = assert(helpers.admin_client():send {
               method = "POST",
-              path = "/consumers/test/escher_key/",
+              path = "/consumers/" .. consumer.id .. "/escher_key/",
               body = {
                 key = 'yet_another_test_key',
                 secret = 'test_secret'
@@ -119,7 +144,7 @@ describe("Plugin: escher (access)", function()
 
             local delete_call = assert(helpers.admin_client():send {
                 method = "DELETE",
-                path = "/consumers/test/escher_key/yet_another_test_key"
+                path = "/consumers/" .. consumer.id .. "/escher_key/yet_another_test_key"
               })
 
             local body = assert.res_status(204, delete_call)
@@ -200,7 +225,7 @@ describe("Plugin: escher (access)", function()
         it("responds with status 200 when X-EMS-AUTH header is valid", function()
             assert(helpers.admin_client():send {
                 method = "POST",
-                path = "/consumers/test/escher_key/",
+                path = "/consumers/" .. consumer.id .. "/escher_key/",
                 body = {
                     key = 'test_key',
                     secret = 'test_secret'

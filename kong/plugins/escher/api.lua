@@ -1,4 +1,11 @@
 local crud = require "kong.api.crud_helpers"
+local EasyCrypto = require "resty.easy-crypto"
+
+local ecrypto = EasyCrypto:new({
+    saltSize = 12,
+    ivSize = 16,
+    iterationCount = 10000
+})
 
 return {
     ["/consumers/:username_or_id/escher_key/"] = {
@@ -8,6 +15,18 @@ return {
         end,
 
         POST = function(self, dao_factory, helpers)
+            local file = assert(io.open('/secret.txt', "r")) -- TEST
+            --if file == nil then
+            --    return false, "Encryption key file could not be found."
+            --else
+            local salt = file:read("*all")
+            --end
+
+            file:close()
+
+            local encrypted_secret = ecrypto:encrypt(salt, self.params.secret)
+            self.params.secret = encrypted_secret
+
             crud.post(self.params, dao_factory.escher_keys)
         end
     },
