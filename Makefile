@@ -30,9 +30,11 @@ test: ## Run tests
 	docker-compose down
 
 dev-env: ## Creates API (testapi) and consumer (TestUser)
-	bash -c "curl -i -X POST --url http://localhost:8001/apis/ --data 'name=testapi' --data 'upstream_url=http://mockbin.org/request' --data 'uris=/'"
-	bash -c "curl -i -X POST --url http://localhost:8001/apis/testapi/plugins/ --data 'name=escher'"
+	bash -c "curl -i -X POST --url http://localhost:8001/services/ --data 'name=testapi' --data 'url=http://mockbin.org/request'"
+	bash -c "curl -i -X POST --url http://localhost:8001/services/testapi/routes/ --data 'paths[]=/'"
+	bash -c "curl -i -X POST --url http://localhost:8001/services/testapi/plugins/ --data 'name=escher'"
 	bash -c "curl -i -X POST --url http://localhost:8001/consumers/ --data 'username=TestUser'"
+	bash -c "curl -i -X POST --url http://localhost:8001/consumers/TestUser/escher_key/ --data 'key=suite_test-integration&secret=53cr37p455w0rd'"
 
 ping: ## Pings kong on localhost:8000
 	bash -c "curl -i http://localhost:8000"
