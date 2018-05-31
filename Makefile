@@ -32,12 +32,15 @@ test: ## Run tests
 dev-env: ## Creates API (testapi) and consumer (TestUser)
 	bash -c "curl -i -X POST --url http://localhost:8001/services/ --data 'name=testapi' --data 'url=http://mockbin.org/request'"
 	bash -c "curl -i -X POST --url http://localhost:8001/services/testapi/routes/ --data 'paths[]=/'"
-	bash -c "curl -i -X POST --url http://localhost:8001/services/testapi/plugins/ --data 'name=escher'"
+	bash -c "curl -i -X POST --url http://localhost:8001/services/testapi/plugins/ --data 'name=escher' --data 'config.encryption_key_path=/secret.txt'"
 	bash -c "curl -i -X POST --url http://localhost:8001/consumers/ --data 'username=TestUser'"
-	bash -c "curl -i -X POST --url http://localhost:8001/consumers/TestUser/escher_key/ --data 'key=suite_test-integration&secret=53cr37p455w0rd'"
+	bash -c "curl -i -X POST --url http://localhost:8001/consumers/TestUser/escher_key/ --data 'key=suite_test-integration_v1&secret=53cr37p455w0rd'"
 
 ping: ## Pings kong on localhost:8000
 	bash -c "curl -i http://localhost:8000"
 
 ssh: ## Pings kong on localhost:8000
 	docker-compose run kong bash
+
+db: ## Access DB ( works only after 'make ssh' in kong-plungins directory)
+	psql -h kong-database -U kong
