@@ -3,32 +3,26 @@ local cjson = require "cjson"
 local Escher = require "escher"
 local TestHelper = require "spec.test_helper"
 
-describe("Plugin: escher (access)", function()
-    local dev_env = {
-        custom_plugins = 'escher'
-    }
+local function get_response_body(response)
+    local body = assert.res_status(201, response)
+    return cjson.decode(body)
+end
 
-    local plugin
-    local api_id
+local function setup_test_env()
+    helpers.dao:truncate_tables()
+
+    local service = get_response_body(TestHelper.setup_service())
+    local route = get_response_body(TestHelper.setup_route_for_service(service.id))
+    local plugin = get_response_body(TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/secret.txt" }))
+    local consumer = get_response_body(TestHelper.setup_consumer('test'))
+
+    return service, route, plugin, consumer
+end
+
+describe("Plugin: escher (access)", function()
 
     setup(function()
-        local api1 = assert(helpers.dao.apis:insert { name = "test-api", hosts = { "test1.com" }, upstream_url = "http://mockbin.com" })
-        api_id = api1.id
-
-        plugin = assert(helpers.dao.plugins:insert {
-            api_id = api1.id,
-            name = "escher",
-            config = {
-                encryption_key_path = "/secret.txt"
-            }
-        })
-
-        consumer = assert(helpers.dao.consumers:insert {
-            username = "test"
-        })
-
-
-        assert(helpers.start_kong(dev_env))
+        helpers.start_kong({ custom_plugins = 'escher' })
     end)
 
     teardown(function()
@@ -36,6 +30,13 @@ describe("Plugin: escher (access)", function()
     end)
 
     describe("Admin API", function()
+
+        local service, route, plugin, consumer
+
+        before_each(function()
+            service, route, plugin, consumer = setup_test_env()
+        end)
+
         it("registered the plugin globally", function()
             local res = assert(helpers.admin_client():send {
                 method = "GET",
@@ -76,7 +77,7 @@ describe("Plugin: escher (access)", function()
           assert.is_equal('test_key', json.key)
         end)
 
-        it("should create a new escher key with encrypted secret using salt from file", function()
+        it("should create a new escher key with encrypted secret using encryption key from file", function()
             local ecrypto = TestHelper.get_easy_crypto()
 
             local secret = 'test_secret'
@@ -94,7 +95,9 @@ describe("Plugin: escher (access)", function()
 
             local body = assert.res_status(201, res)
             local json = cjson.decode(body)
+
             assert.is_equal('test_key_v2', json.key)
+            assert.are_not.equals(secret, json.secret)
 
             local encryption_key = TestHelper.get_salt_from_file(plugin.config.encryption_key_path)
 
@@ -151,7 +154,31 @@ describe("Plugin: escher (access)", function()
           end)
     end)
 
+    describe("Setup plugin with wrong config", function()
+
+        local service, route, plugin, consumer
+
+        before_each(function()
+            helpers.dao:truncate_tables()
+            service = get_response_body(TestHelper.setup_service())
+            route = get_response_body(TestHelper.setup_route_for_service(service.id))
+        end)
+
+        it("should respons 400 when encryption file does not exists", function()
+            local res = TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/kong.txt" })
+
+            assert.res_status(400, res)
+        end)
+    end)
+
     describe("Authentication", function()
+
+        local service, route, plugin, consumer
+
+        before_each(function()
+            service, route, plugin, consumer = setup_test_env()
+        end)
+
         local current_date = os.date("!%Y%m%dT%H%M%SZ")
 
         local config = {

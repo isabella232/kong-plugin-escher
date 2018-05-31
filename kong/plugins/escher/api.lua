@@ -15,16 +15,13 @@ return {
         end,
 
         POST = function(self, dao_factory, helpers)
-            local file = assert(io.open('/secret.txt', "r")) -- TEST
-            --if file == nil then
-            --    return false, "Encryption key file could not be found."
-            --else
-            local salt = file:read("*all")
-            --end
+            local file = assert(io.open('/secret.txt', "r"))
+
+            local encryption_key = file:read("*all")
 
             file:close()
 
-            local encrypted_secret = ecrypto:encrypt(salt, self.params.secret)
+            local encrypted_secret = ecrypto:encrypt(encryption_key, self.params.secret)
             self.params.secret = encrypted_secret
 
             crud.post(self.params, dao_factory.escher_keys)

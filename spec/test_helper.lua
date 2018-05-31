@@ -31,12 +31,13 @@ function TestHelper.setup_route_for_service(service_id)
     })
 end
 
-function TestHelper.setup_plugin_for_service(service_id, plugin_name)
+function TestHelper.setup_plugin_for_service(service_id, plugin_name, config)
     return assert(helpers.admin_client():send {
         method = "POST",
         path = "/services/" .. service_id .. "/plugins/",
         body = {
             name = plugin_name,
+            config = config
         },
         headers = {
             ["Content-Type"] = "application/json"
