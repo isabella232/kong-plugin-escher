@@ -7,7 +7,8 @@
  - write the luarock api key to env file (from secret server)
 
 ## Running tests from project folder:
-`docker-compose run kong bash -c "cd /kong && bin/busted /kong-plugins/spec"`
+
+`make test`
 
 ## Publish new release
  - rename rockspec file to the new version
