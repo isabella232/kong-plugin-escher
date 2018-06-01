@@ -32,12 +32,22 @@ local encryption_engine = function()
     })
 end
 
-local encrypt_with_key = function(subject, key)
-    return encryption_engine():encrypt(key, subject)
+local encrypter = function(encryption_key_path, subject)
+    if encryption_key_path == nil then
+        return subject
+    else
+        local encryption_key = load_key(encryption_key_path)
+        return encryption_engine():encrypt(encryption_key, subject)
+    end
 end
 
-local decrypt_with_key = function(subject, key)
-    return encryption_engine():decrypt(key, subject)
+local decrypter = function(encryption_key_path, subject)
+    if encryption_key_path == nil then
+        return subject
+    else
+        local encryption_key = load_key(encryption_key_path)
+        return encryption_engine():decrypt(encryption_key, subject)
+    end
 end
 
 local _M = Object:extend()
@@ -47,15 +57,11 @@ function _M:new(encryption_key_path)
 end
 
 function _M:encrypt(subject)
-    local encryption_key = load_key(self.encryption_key_path)
-
-    return encrypt_with_key(subject, encryption_key)
+    return encrypter(self.encryption_key_path, subject)
 end
 
 function _M:decrypt(subject)
-    local encryption_key = load_key(self.encryption_key_path)
-
-    return decrypt_with_key(subject, encryption_key)
+    return decrypter(self.encryption_key_path, subject)
 end
 
 return _M
