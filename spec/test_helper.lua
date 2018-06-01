@@ -2,13 +2,14 @@ local helpers = require "spec.helpers"
 
 local TestHelper = {}
 
-function TestHelper.setup_service()
+function TestHelper.setup_service(name)
+    name = name or 'testservice'
 
     return assert(helpers.admin_client():send {
         method = "POST",
         path = "/services/",
         body = {
-            name = 'testservice',
+            name = name,
             url = 'http://mockbin.org/request'
         },
         headers = {
@@ -68,7 +69,7 @@ function TestHelper.get_easy_crypto()
     return ecrypto
 end
 
-function TestHelper.get_salt_from_file(file_path)
+function TestHelper.load_encryption_key_from_file(file_path)
     local file = assert(io.open(file_path, "r"))
     local encryption_key = file:read("*all")
     file:close()

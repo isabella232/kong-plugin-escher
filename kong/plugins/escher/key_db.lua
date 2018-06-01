@@ -1,33 +1,21 @@
-local singletons = require "kong.singletons"
-local Object = require("classic")
 local Logger = require "logger"
-
-local EasyCrypto = require "resty.easy-crypto"
-
-local ecrypto = EasyCrypto:new({
-    saltSize = 12,
-    ivSize = 16,
-    iterationCount = 10000
-})
-
-local function get_encryption_key(encryption_key_path)
-    local file = assert(io.open(encryption_key_path, "r")) -- TEST
-    local encryption_key = file:read("*all")
-
-    file:close()
-    return encryption_key
-end
+local Object = require "classic"
+local singletons = require "kong.singletons"
 
 local KeyDb = Object:extend()
 
 local function load_credential(key)
-    local credential, err = singletons.dao.escher_keys:find_all { key = key }
+    local credential, err = singletons.dao.escher_keys:find_all({["key"] = key})
 
     if err then
         return nil, err
     end
 
     return credential[1]
+end
+
+function KeyDb:new(crypto)
+    self.crypto = crypto
 end
 
 function KeyDb:find_secret_by_key(key)
@@ -37,9 +25,7 @@ function KeyDb:find_secret_by_key(key)
       return nil
     end
 
-    local encryption_key = get_encryption_key('/secret.txt')
-
-    return ecrypto:decrypt(encryption_key, escher_key.secret)
+    return self.crypto:decrypt(escher_key.secret)
 end
 
 function KeyDb:find_by_key(key)

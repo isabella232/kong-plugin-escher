@@ -5,6 +5,7 @@ local EscherWrapper = require "kong.plugins.escher.escher_wrapper"
 local ConsumerDb = require "kong.plugins.escher.consumer_db"
 local KeyDb = require "kong.plugins.escher.key_db"
 local Logger = require "logger"
+local Crypt = require "kong.plugins.escher.crypt"
 
 
 local EscherHandler = BasePlugin:extend()
@@ -42,7 +43,8 @@ function EscherHandler:access(conf)
     local escher_header_string = ngx.req.get_headers()["X-EMS-AUTH"]
 
     if escher_header_string then
-        local key_db = KeyDb()
+        local crypt = Crypt(conf.encryption_key_path)
+        local key_db = KeyDb(crypt)
         local escher = EscherWrapper(ngx, key_db)
         local escher_key, err = escher:authenticate()
 

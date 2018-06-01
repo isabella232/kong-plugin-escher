@@ -1,5 +1,5 @@
-local Object = require "classic"
 local Escher = require "escher"
+local Object = require "classic"
 
 local EscherWrapper = Object:extend()
 
@@ -16,7 +16,7 @@ local function parse_headers(ngx_headers)
     return headers, mandatoryHeadersToSign
 end
 
-local function find_by_key(key_db)
+local function key_retriever(key_db)
     return function(key)
         return key_db:find_secret_by_key(key)
     end
@@ -48,7 +48,7 @@ function EscherWrapper:authenticate()
         ["body"] = self.ngx.req.get_body_data()
     }
 
-    local api_key, err = escher:authenticate(request, find_by_key(self.key_db), mandatory_headers_to_sign)
+    local api_key, err = escher:authenticate(request, key_retriever(self.key_db), mandatory_headers_to_sign)
 
     if not api_key then
         return nil, err

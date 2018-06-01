@@ -1,5 +1,5 @@
-local Object = require("classic")
-
+local EasyCrypto = require "resty.easy-crypto"
+local Object = require "classic"
 local singletons = require "kong.singletons"
 
 local load_key_from_file = function(path)
@@ -9,7 +9,7 @@ local load_key_from_file = function(path)
         error({msg = "Could not load encryption key."})
     end
 
-    local encryption_key = file:read()
+    local encryption_key = file:read("*all")
 
     file:close()
 
@@ -24,12 +24,20 @@ local load_key = function(path)
     return key
 end
 
+local encryption_engine = function()
+    return EasyCrypto:new({
+        saltSize = 12,
+        ivSize = 16,
+        iterationCount = 10000
+    })
+end
+
 local encrypt_with_key = function(subject, key)
-    return subject
+    return encryption_engine():encrypt(key, subject)
 end
 
 local decrypt_with_key = function(subject, key)
-    return subject
+    return encryption_engine():decrypt(key, subject)
 end
 
 local _M = Object:extend()
