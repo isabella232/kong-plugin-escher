@@ -6,15 +6,11 @@ local function check_user(anonymous)
     return true
   end
 
-  return false, "the anonymous user must be nil or a valid uuid"
+  return false, "Anonymous must a valid uuid if specified"
 end
 
-local function ensure_file_exists(encryption_key_path)
-  if encryption_key_path == nil then
-    return true
-  end
-
-  local file = io.open(encryption_key_path, "r")
+local function file_exists(file_path)
+  local file = io.open(file_path, "r")
 
   if file == nil then
     return false, "Encryption key file could not be found."
@@ -23,6 +19,14 @@ local function ensure_file_exists(encryption_key_path)
   file:close()
   
   return true
+end
+
+local function ensure_file_exists(encryption_key_path)
+  if encryption_key_path == nil then
+    return true
+  end
+
+  return file_exists(encryption_key_path)
 end
 
 local function ensure_same_encryption_key_is_used(schema, config, dao, is_updating)
