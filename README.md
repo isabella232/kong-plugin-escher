@@ -16,6 +16,7 @@
  - commit the changes
  - create a new tag (ex.: git tag 0.1.0)
  - push the changes with the tag (git push --tag)
+ - `make publish`
  
 ## Create dummy data on Admin API
 
