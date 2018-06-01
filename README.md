@@ -1,4 +1,4 @@
-# Kong WSSE Plugin
+# Kong Escher Plugin
 
 ## Install
  - clone the git repo
