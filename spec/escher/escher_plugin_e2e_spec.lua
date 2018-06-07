@@ -155,7 +155,6 @@ describe("Plugin: escher (access)", function()
     end)
 
     describe("Setup plugin with wrong config", function()
-
         local service, route, plugin, consumer
 
         before_each(function()
@@ -169,26 +168,17 @@ describe("Plugin: escher (access)", function()
 
             assert.res_status(400, res)
         end)
-    end)
 
-    describe("Setup plugin with wrong config", function()
+        it("should respons 400 when encryption file path does not equal with the other escher plugin configurations", function()
+            local other_service = get_response_body(TestHelper.setup_service("second"))
 
-        before_each(function()
-            helpers.dao:truncate_tables()
-        end)
-
-        it("should respons 400 when encryption file does not exists", function()
-            local first_service = get_response_body(TestHelper.setup_service("first"))
-            local second_service = get_response_body(TestHelper.setup_service("second"))
-
-            get_response_body(TestHelper.setup_route_for_service(first_service.id))
-            get_response_body(TestHelper.setup_route_for_service(second_service.id))
+            get_response_body(TestHelper.setup_route_for_service(other_service.id))
 
             local f = io.open("/tmp/other_secret.txt", "w")
             f:close()
 
-            local first_res = TestHelper.setup_plugin_for_service(first_service.id, 'escher', { encryption_key_path = "/secret.txt" })
-            local second_res = TestHelper.setup_plugin_for_service(second_service.id, 'escher', { encryption_key_path = "/tmp/other_secret.txt" })
+            TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/secret.txt" })
+            local second_res = TestHelper.setup_plugin_for_service(other_service.id, 'escher', { encryption_key_path = "/tmp/other_secret.txt" })
 
             assert.res_status(400, second_res)
         end)
