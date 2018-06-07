@@ -29,6 +29,17 @@ test: ## Run tests
 	docker-compose run kong bash -c "cd /kong && bin/busted /kong-plugins/spec"
 	docker-compose down
 
+unit: ## Run unit tests
+	docker-compose up -d
+	docker-compose run kong bash -c "cd /kong && bin/busted --exclude-tags='e2e' /kong-plugins/spec"
+	docker-compose down
+
+e2e: ## Run end to end tests
+	docker-compose up -d
+	docker-compose run kong bash -c "cd /kong && bin/busted -t 'e2e' /kong-plugins/spec"
+	docker-compose down
+
+
 dev-env: ## Creates API (testapi) and consumer (TestUser)
 	bash -c "curl -i -X POST --url http://localhost:8001/services/ --data 'name=testapi' --data 'url=http://mockbin.org/request'"
 	bash -c "curl -i -X POST --url http://localhost:8001/services/testapi/routes/ --data 'paths[]=/'"

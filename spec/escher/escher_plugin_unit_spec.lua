@@ -37,9 +37,7 @@ describe("escher plugin", function()
         end
     end
 
-    EscherWrapper.authenticate = function()
-        return test_escher_key
-    end
+
 
     before_each(function()
         local ngx_req_headers = {}
@@ -66,6 +64,10 @@ describe("escher plugin", function()
             }
         }
 
+        EscherWrapper.authenticate = function()
+            return test_escher_key
+        end
+
         _G.ngx = stubbed_ngx
         stub(stubbed_ngx, "say")
         stub(stubbed_ngx, "exit")
@@ -81,6 +83,9 @@ describe("escher plugin", function()
     describe("#access", function()
 
         it("set anonymous header to true when request not has x-ems-auth header", function()
+            EscherWrapper.authenticate = function()
+                return nil
+            end
             handler:access(mock_config)
             assert.are.equal(true, ngx.req.get_headers()[constants.HEADERS.ANONYMOUS])
         end)
@@ -92,6 +97,9 @@ describe("escher plugin", function()
         end)
 
         it("set anonymous consumer on ngx context and not set credentials when X-EMS-AUTH header was not found", function()
+            EscherWrapper.authenticate = function()
+                return nil
+            end
             handler:access(mock_config)
             assert.are.equal(anonymous_consumer, ngx.ctx.authenticated_consumer)
             assert.are.equal(nil, ngx.ctx.authenticated_credential)

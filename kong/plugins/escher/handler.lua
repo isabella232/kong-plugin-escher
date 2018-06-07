@@ -27,6 +27,14 @@ local function set_consumer(consumer, escher_key)
     end
 end
 
+local function anonymous_passthrough_is_enabled(plugin_config)
+    return plugin_config.anonymous ~= nil
+end
+
+local function already_authenticated_by_other_plugin(plugin_config, authenticated_credential)
+    return anonymous_passthrough_is_enabled(plugin_config) and authenticated_credential ~= nil
+end
+
 function EscherHandler:new()
     EscherHandler.super.new(self, "escher")
 end
@@ -34,39 +42,38 @@ end
 function EscherHandler:access(conf)
     EscherHandler.super.access(self)
 
-    if ngx.ctx.authenticated_credential and conf.anonymous ~= nil then
-        -- we're already authenticated, and we're configured for using anonymous,
-        -- hence we're in a logical OR between auth methods and we're already done.
+    if already_authenticated_by_other_plugin(conf, ngx.ctx.authenticated_credential) then
         return
     end
 
-    local escher_header_string = ngx.req.get_headers()["X-EMS-AUTH"]
-
-    if escher_header_string then
+    local success, result = pcall(function()
         local crypt = Crypt(conf.encryption_key_path)
         local key_db = KeyDb(crypt)
         local escher = EscherWrapper(ngx, key_db)
         local escher_key, err = escher:authenticate()
 
-        if not escher_key then
-            Logger.getInstance(ngx):logInfo({status = 401, msg = err})
-            return responses.send(401, err)
+        if escher_key then
+            local consumer = ConsumerDb.find_by_id(escher_key.consumer_id)
+
+            set_consumer(consumer, escher_key)
+            Logger.getInstance(ngx):logInfo({msg = "Escher authentication was successful."})
+        elseif anonymous_passthrough_is_enabled(conf) then
+            local anonymous = ConsumerDb.find_by_id(conf.anonymous, true)
+            set_consumer(anonymous)
+            Logger.getInstance(ngx):logInfo({msg = "Escher authentication skipped."})
+        else
+            local error_message = "X-EMS-AUTH header not found!"
+            Logger.getInstance(ngx):logInfo({status = 401, msg = error_message})
+            return responses.send(401, error_message)
         end
+    end)
 
-        local consumer = ConsumerDb.find_by_id(escher_key.consumer_id)
-
-        set_consumer(consumer, escher_key)
-        Logger.getInstance(ngx):logInfo({msg = "Escher authentication was successful."})
-    elseif conf.anonymous == nil then
-        local error_message = "X-EMS-AUTH header not found!"
-        Logger.getInstance(ngx):logInfo({status = 401, msg = error_message})
-        return responses.send(401, error_message)
-    else
-        local anonymous = ConsumerDb.find_by_id(conf.anonymous, true)
-        set_consumer(anonymous)
-        Logger.getInstance(ngx):logInfo({msg = "Escher authentication skipped."})
+    if not success then
+        Logger.getInstance(ngx).logError(result)
+        return responses.send(500, "An unexpected error occurred.")
     end
 
+    return result
 end
 
 return EscherHandler
