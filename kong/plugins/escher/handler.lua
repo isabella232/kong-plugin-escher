@@ -6,6 +6,7 @@ local ConsumerDb = require "kong.plugins.escher.consumer_db"
 local KeyDb = require "kong.plugins.escher.key_db"
 local Logger = require "logger"
 local Crypt = require "kong.plugins.escher.crypt"
+local singletons = require "kong.singletons"
 
 
 local EscherHandler = BasePlugin:extend()
@@ -35,8 +36,51 @@ local function already_authenticated_by_other_plugin(plugin_config, authenticate
     return anonymous_passthrough_is_enabled(plugin_config) and authenticated_credential ~= nil
 end
 
+local function iterate_pages(dao)
+    local page_size = 1000
+
+    local from = 1
+    local current_page = dao:find_page(nil, from, page_size)
+    local index_on_page = 1
+
+    return function()
+        while #current_page > 0 do
+            local element = current_page[index_on_page]
+
+            if element then
+                index_on_page = index_on_page + 1
+                return element
+            else
+                from = from + page_size
+                current_page = dao:find_page(nil, from, page_size)
+                index_on_page = 1
+            end
+        end
+
+        return nil
+    end
+end
+
+local function identity(entity)
+    return entity
+end
+
+local function cache_all_entities_in(dao)
+    for entity in iterate_pages(dao) do
+        local cache_key = dao:cache_key(entity)
+        singletons.cache:get(cache_key, nil, identity, entity)
+    end
+end
+
 function EscherHandler:new()
     EscherHandler.super.new(self, "escher")
+end
+
+function EscherHandler:init_worker()
+    EscherHandler.super.init_worker(self)
+
+    cache_all_entities_in(singletons.dao.consumers)
+    cache_all_entities_in(singletons.dao.escher_keys)
 end
 
 function EscherHandler:access(conf)
