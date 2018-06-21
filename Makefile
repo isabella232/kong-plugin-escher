@@ -53,5 +53,5 @@ ping: ## Pings kong on localhost:8000
 ssh: ## Pings kong on localhost:8000
 	docker-compose run kong bash
 
-db: ## Access DB ( works only after 'make ssh' in kong-plungins directory)
-	psql -h kong-database -U kong
+db: ## Access DB
+	docker-compose run kong bash -c "psql -h kong-database -U kong"
