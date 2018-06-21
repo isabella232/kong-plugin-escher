@@ -65,11 +65,21 @@ local function identity(entity)
     return entity
 end
 
-local function cache_all_entities_in(dao)
+local function cache_all_entities_in(dao, key_retriever)
     for entity in iterate_pages(dao) do
-        local cache_key = dao:cache_key(entity)
+        local unique_identifier = key_retriever(entity)
+        local cache_key = dao:cache_key(unique_identifier)
+        
         singletons.cache:get(cache_key, nil, identity, entity)
     end
+end
+
+local function retrieve_id_from_consumer(consumer)
+    return consumer.id
+end
+
+local function retrieve_escher_key_name(escher_key)
+    return escher_key.key
 end
 
 function EscherHandler:new()
@@ -79,8 +89,8 @@ end
 function EscherHandler:init_worker()
     EscherHandler.super.init_worker(self)
 
-    cache_all_entities_in(singletons.dao.consumers)
-    cache_all_entities_in(singletons.dao.escher_keys)
+    cache_all_entities_in(singletons.dao.consumers, retrieve_id_from_consumer)
+    cache_all_entities_in(singletons.dao.escher_keys, retrieve_escher_key_name)
 end
 
 function EscherHandler:access(conf)
