@@ -235,7 +235,7 @@ describe("Plugin: escher (access) #e2e", function()
         local ems_auth_header_wrong_api_key = escher_wrong_api_key:generateHeader(request, {})
 
         context("when anonymous user does not allowed", function()
-            it("responds with status 401 if request not has X-EMS-AUTH header", function()
+            it("responds with status 401 if request not has X-EMS-DATE and X-EMS-AUTH header", function()
                 local res = assert(helpers.proxy_client():send {
                     method = "GET",
                     path = "/request",
@@ -245,7 +245,7 @@ describe("Plugin: escher (access) #e2e", function()
                 })
 
                 local body = assert.res_status(401, res)
-                assert.is_equal('{"message":"X-EMS-AUTH header not found!"}', body)
+                assert.is_equal('{"message":"The x-ems-date header is missing"}', body)
             end)
 
             it("responds with status 401 when X-EMS-AUTH header is invalid", function()
