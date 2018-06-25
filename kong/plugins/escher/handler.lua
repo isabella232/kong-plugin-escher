@@ -116,9 +116,8 @@ function EscherHandler:access(conf)
             set_consumer(anonymous)
             Logger.getInstance(ngx):logInfo({msg = "Escher authentication skipped."})
         else
-            local error_message = "X-EMS-AUTH header not found!"
-            Logger.getInstance(ngx):logInfo({status = 401, msg = error_message})
-            return responses.send(401, error_message)
+            Logger.getInstance(ngx):logInfo({status = 401, msg = err})
+            return responses.send(401, err)
         end
     end)
 
