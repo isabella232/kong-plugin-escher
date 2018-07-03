@@ -105,18 +105,19 @@ function EscherHandler:access(conf)
         local key_db = KeyDb(crypt)
         local escher = EscherWrapper(ngx, key_db)
         local escher_key, err = escher:authenticate()
+        local headers = ngx.req.get_headers()
 
         if escher_key then
             local consumer = ConsumerDb.find_by_id(escher_key.consumer_id)
 
             set_consumer(consumer, escher_key)
-            Logger.getInstance(ngx):logInfo({msg = "Escher authentication was successful."})
+            Logger.getInstance(ngx):logInfo({msg = "Escher authentication was successful.", ["x-ems-auth"] = headers['x-ems-auth']})
         elseif anonymous_passthrough_is_enabled(conf) then
             local anonymous = ConsumerDb.find_by_id(conf.anonymous, true)
             set_consumer(anonymous)
-            Logger.getInstance(ngx):logInfo({msg = "Escher authentication skipped."})
+            Logger.getInstance(ngx):logInfo({msg = "Escher authentication skipped.", ["x-ems-auth"] = headers['x-ems-auth']})
         else
-            Logger.getInstance(ngx):logInfo({status = 401, msg = err})
+            Logger.getInstance(ngx):logInfo({status = 401, msg = err, ["x-ems-auth"] = headers['x-ems-auth']})
             return responses.send(401, err)
         end
     end)
