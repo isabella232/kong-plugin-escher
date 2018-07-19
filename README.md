@@ -2,9 +2,7 @@
 
 ## Install
  - clone the git repo
- - enter to the directory
- - cp env.sample env
- - write the luarock api key to env file (from secret server)
+ - add luarock api key to environment variables (LUAROCKS_API_KEY)
 
 ## Running tests from project folder:
 
@@ -24,6 +22,4 @@
 
 ## Access local DB
 
-- `make ssh`
-- `cd kong-plugins`
 - `make db`
