@@ -115,9 +115,9 @@ function EscherHandler:access(conf)
         elseif anonymous_passthrough_is_enabled(conf) then
             local anonymous = ConsumerDb.find_by_id(conf.anonymous, true)
             set_consumer(anonymous)
-            Logger.getInstance(ngx):logInfo({msg = "Escher authentication skipped.", ["x-ems-auth"] = headers['x-ems-auth']})
+            Logger.getInstance(ngx):logWarning({msg = "Escher authentication skipped.", ["x-ems-auth"] = headers['x-ems-auth']})
         else
-            Logger.getInstance(ngx):logInfo({status = 401, msg = err, ["x-ems-auth"] = headers['x-ems-auth']})
+            Logger.getInstance(ngx):logWarning({status = 401, msg = err, ["x-ems-auth"] = headers['x-ems-auth']})
             return responses.send(401, err)
         end
     end)
