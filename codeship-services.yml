@@ -3,6 +3,7 @@ kong:
   dockerfile: Dockerfile
   depends_on:
     - kong-database
+    - mockbin
   environment:
     - KONG_DATABASE=postgres
     - KONG_PG_HOST=kong-database
@@ -36,3 +37,8 @@ kong-database:
     - POSTGRES_USER=kong
     - POSTGRES_DB=kong
     - POSTGRES_PASSWORD=kong
+
+mockbin:
+  image: mashape/mockbin
+  ports:
+      - 8080

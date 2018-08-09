@@ -10,7 +10,7 @@ function TestHelper.setup_service(name)
         path = "/services/",
         body = {
             name = name,
-            url = 'http://mockbin.org/request'
+            url = 'http://mockbin:8080/request'
         },
         headers = {
             ["Content-Type"] = "application/json"

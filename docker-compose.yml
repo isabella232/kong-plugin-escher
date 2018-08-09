@@ -53,3 +53,9 @@ services:
       retries: 5
     volumes:
       - ./.docker/postgres-data:/var/lib/postgresql/data:rw
+
+  mockbin:
+    image: mashape/mockbin
+    ports:
+      - 8080:8080
+
