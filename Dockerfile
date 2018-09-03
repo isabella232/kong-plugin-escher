@@ -1,4 +1,4 @@
-FROM emarsys/kong-dev-docker:03dcac138951fc470872105917a67b4655205495
+FROM emarsys/kong-dev-docker:75e7c55c6b5e0e76cc70db52c142120e97199fe1
 
 RUN yum install -y cmake gcc-c++ openssl-devel
 
@@ -7,8 +7,5 @@ RUN luarocks install classic
 RUN luarocks install escher
 RUN luarocks install lua-easy-crypto 1.0.0
 RUN luarocks install kong-lib-logger --deps-mode=none
-
-COPY docker-entrypoint.sh /docker-entrypoint.sh
-ENTRYPOINT ["/docker-entrypoint.sh"]
 
 CMD ["/kong/bin/kong", "start", "--v"]
