@@ -40,7 +40,6 @@ end
 function CacheWarmer:cache_all_entities(dao, key_retriever)
     for entity in iterate_pages(dao) do
         local identifiers = key_retriever(entity)
-        print(table.unpack(identifiers))
         local cache_key = dao:cache_key(table.unpack(identifiers))
 
         singletons.cache:get(cache_key, { ttl = self.ttl }, identity, entity)
