@@ -1,6 +1,9 @@
-FROM emarsys/kong-dev-docker:5fa91b6bb62e6a01d6a5a8782a8a550d4d7ec56d
+FROM emarsys/kong-dev-docker:a1a962b1ca0db94bfd69afaf75f1fb7f8b63a585
 
-RUN yum install -y cmake gcc-c++ openssl-devel
+RUN apk add \
+    cmake \
+    g++ \
+    openssl-dev
 
 RUN luarocks install date 2.1.2-1
 RUN luarocks install classic
