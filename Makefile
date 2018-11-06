@@ -25,18 +25,15 @@ publish: ## Build and publish plugin to luarocks
 	docker-compose run kong bash -c "cd /kong-plugins && chmod +x publish.sh && ./publish.sh"
 
 test: ## Run tests
-	docker-compose up -d
-	docker-compose run kong bash -c "cd /kong && bin/busted /kong-plugins/spec"
+	docker-compose run kong bash -c "cd /kong && bin/kong migrations up && bin/busted /kong-plugins/spec"
 	docker-compose down
 
 unit: ## Run unit tests
-	docker-compose up -d
-	docker-compose run kong bash -c "cd /kong && bin/busted --exclude-tags='e2e' /kong-plugins/spec"
+	docker-compose run kong bash -c "cd /kong && bin/kong migrations up && bin/busted --exclude-tags='e2e' /kong-plugins/spec"
 	docker-compose down
 
 e2e: ## Run end to end tests
-	docker-compose up -d
-	docker-compose run kong bash -c "cd /kong && bin/busted -t 'e2e' /kong-plugins/spec"
+	docker-compose run kong bash -c "cd /kong && bin/kong migrations up && bin/busted -t 'e2e' /kong-plugins/spec"
 	docker-compose down
 
 
