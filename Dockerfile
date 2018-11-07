@@ -1,5 +1,6 @@
 FROM emarsys/kong-dev-docker:a1a962b1ca0db94bfd69afaf75f1fb7f8b63a585
 
+RUN apk update
 RUN apk add \
     cmake \
     g++ \
