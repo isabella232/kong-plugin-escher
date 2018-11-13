@@ -1,13 +1,15 @@
-FROM emarsys/kong-dev-docker:a1a962b1ca0db94bfd69afaf75f1fb7f8b63a585
+FROM emarsys/kong-dev-docker:d1a40fe7ae16a51df073a6f12e2cf60060d16afd
 
-RUN apk update
-RUN apk add \
-    cmake \
-    g++ \
-    openssl-dev
+RUN yum update -y && \
+    yum install -y \
+        cmake \
+        gcc-c++ \
+        openssl-devel && \
+    yum clean all && \
+    rm -rf /var/cache/yum
 
-RUN luarocks install date 2.1.2-1
-RUN luarocks install classic
-RUN luarocks install escher
-RUN luarocks install lua-easy-crypto 1.0.0
-RUN luarocks install kong-lib-logger --deps-mode=none
+RUN luarocks install date 2.1.2-1 && \
+    luarocks install classic && \
+    luarocks install escher && \
+    luarocks install lua-easy-crypto 1.0.0 && \
+    luarocks install kong-lib-logger --deps-mode=none
