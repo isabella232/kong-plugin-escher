@@ -163,13 +163,13 @@ describe("Plugin: escher (access) #e2e", function()
             route = get_response_body(TestHelper.setup_route_for_service(service.id))
         end)
 
-        it("should respons 400 when encryption file does not exists", function()
+        it("should respond 400 when encryption file does not exists", function()
             local res = TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/kong.txt" })
 
             assert.res_status(400, res)
         end)
 
-        it("should respons 400 when encryption file path does not equal with the other escher plugin configurations", function()
+        it("should respond 400 when encryption file path does not equal with the other escher plugin configurations", function()
             local other_service = get_response_body(TestHelper.setup_service("second"))
 
             get_response_body(TestHelper.setup_route_for_service(other_service.id))
@@ -259,7 +259,8 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.res_status(401, res)
+                local body = assert.res_status(401, res)
+                assert.is_equal('{"message":"Could not parse X-Ems-Auth header"}', body)
             end)
 
             it("responds with status 200 when X-EMS-AUTH header is valid", function()
@@ -299,7 +300,8 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.res_status(401, res)
+                local body = assert.res_status(401, res)
+                assert.is_equal('{"message":"Invalid Escher key"}', body)
             end)
         end)
 
