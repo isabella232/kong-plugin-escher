@@ -7,6 +7,8 @@ local KeyDb = require "kong.plugins.escher.key_db"
 local Logger = require "logger"
 local Crypt = require "kong.plugins.escher.crypt"
 local InitWorker = require "kong.plugins.escher.init_worker"
+local PluginConfig = require "kong.plugins.escher.plugin_config"
+local schema = require "kong.plugins.escher.schema"
 
 
 local EscherHandler = BasePlugin:extend()
@@ -46,8 +48,10 @@ function EscherHandler:init_worker()
     InitWorker.execute()
 end
 
-function EscherHandler:access(conf)
+function EscherHandler:access(original_config)
     EscherHandler.super.access(self)
+
+    local conf = PluginConfig(schema):merge_onto_defaults(original_config)
 
     if already_authenticated_by_other_plugin(conf, ngx.ctx.authenticated_credential) then
         return
