@@ -2,15 +2,16 @@ local helpers = require "spec.helpers"
 
 local TestHelper = {}
 
-function TestHelper.setup_service(name)
-    name = name or 'testservice'
+function TestHelper.setup_service(service_name, upstream_url)
+    name = service_name or 'testservice'
+    upstream_url = upstream_url or 'http://mockbin:8080/request'
 
     return assert(helpers.admin_client():send {
         method = "POST",
         path = "/services/",
         body = {
-            name = name,
-            url = 'http://mockbin:8080/request'
+            name = service_name,
+            url = upstream_url
         },
         headers = {
             ["Content-Type"] = "application/json"
@@ -19,12 +20,14 @@ function TestHelper.setup_service(name)
 
 end
 
-function TestHelper.setup_route_for_service(service_id)
+function TestHelper.setup_route_for_service(service_id, path)
+    path = path or '/'
+
     return assert(helpers.admin_client():send {
         method = "POST",
         path = "/services/" .. service_id .. "/routes/",
         body = {
-            paths = {'/'},
+            paths = {path},
         },
         headers = {
             ["Content-Type"] = "application/json"

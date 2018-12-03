@@ -425,6 +425,65 @@ describe("Plugin: escher (access) #e2e", function()
             end)
         end)
 
+        context("when message template is not default", function()
+            local service, route, plugin
+
+            before_each(function()
+                helpers.dao:truncate_tables()
+
+                service = get_response_body(TestHelper.setup_service('testservice', 'http://mockbin.org/request'))
+                route = get_response_body(TestHelper.setup_route_for_service(service.id, '/'))
+                plugin = get_response_body(TestHelper.setup_plugin_for_service(service.id, 'escher', {
+                    encryption_key_path = "/secret.txt",
+                    message_template = '{"custom-message": "%s"}'
+                }))
+            end)
+
+            it("should return response message in the given format", function()
+                local res = assert(helpers.proxy_client():send {
+                    method = "GET",
+                    path = "/request"
+                })
+
+                local response = assert.res_status(401, res)
+                local body = cjson.decode(response)
+
+                assert.is_nil(body.message)
+                assert.not_nil(body['custom-message'])
+                assert.is_equal("The x-ems-date header is missing", body['custom-message'])
+            end)
+
+        end)
+
+        context('when given status code for failed authentications', function()
+            local service, route, plugin, consumer
+
+            before_each(function()
+                helpers.dao:truncate_tables()
+
+                service = get_response_body(TestHelper.setup_service('testservice', 'http://mockbin.org/request'))
+                route = get_response_body(TestHelper.setup_route_for_service(service.id, '/'))
+
+                anonymous = get_response_body(TestHelper.setup_consumer('anonymous'))
+                plugin = get_response_body(TestHelper.setup_plugin_for_service(service.id, 'escher', {
+                    encryption_key_path = "/secret.txt",
+                    status_code = 400
+                }))
+
+                consumer = get_response_body(TestHelper.setup_consumer('TestUser'))
+            end)
+
+            it("should reject request with given HTTP status", function()
+                local res = assert(helpers.proxy_client():send {
+                    method = "GET",
+                    path = "/request"
+                })
+
+                assert.res_status(400, res)
+            end)
+
+        end)
+
     end)
 
 end)

@@ -26,13 +26,13 @@ describe("PluginConfig", function()
             }))
         end)
 
-        --it("should handle the plugin's schema correctly", function()
-        --    local schema = require "kong.plugins.escher.schema"
-        --
-        --    assert.are.same({
-        --        message_template = '{"message": "%s"}'
-        --        status_code = 401
-        --    }, PluginConfig(schema):merge_onto_defaults({}))
-        --end)
+        it("should handle the plugin's schema correctly", function()
+            local schema = require "kong.plugins.escher.schema"
+
+            assert.are.same({
+                message_template = '{"message": "%s"}',
+                status_code = 401
+            }, PluginConfig(schema):merge_onto_defaults({}))
+        end)
     end)
 end)

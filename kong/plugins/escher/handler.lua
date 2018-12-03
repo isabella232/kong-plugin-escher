@@ -3,6 +3,7 @@ local BasePlugin = require "kong.plugins.base_plugin"
 local responses = require "kong.tools.responses"
 local EscherWrapper = require "kong.plugins.escher.escher_wrapper"
 local ConsumerDb = require "kong.plugins.escher.consumer_db"
+local cjson = require "cjson"
 local KeyDb = require "kong.plugins.escher.key_db"
 local Logger = require "logger"
 local Crypt = require "kong.plugins.escher.crypt"
@@ -36,6 +37,10 @@ end
 
 local function already_authenticated_by_other_plugin(plugin_config, authenticated_credential)
     return anonymous_passthrough_is_enabled(plugin_config) and authenticated_credential ~= nil
+end
+
+local function get_transformed_response(template, response_message)
+    return cjson.decode(string.format(template, response_message))
 end
 
 function EscherHandler:new()
@@ -74,8 +79,11 @@ function EscherHandler:access(original_config)
             set_consumer(anonymous)
             Logger.getInstance(ngx):logWarning({msg = "Escher authentication skipped.", ["x-ems-auth"] = headers['x-ems-auth']})
         else
-            Logger.getInstance(ngx):logWarning({status = 401, msg = err, ["x-ems-auth"] = headers['x-ems-auth']})
-            return responses.send(401, err)
+            local status_code = conf.status_code
+
+            Logger.getInstance(ngx):logWarning({status = status_code, msg = err, ["x-ems-auth"] = headers['x-ems-auth']})
+
+            return responses.send(status_code, get_transformed_response(conf.message_template, err))
         end
     end)
 
