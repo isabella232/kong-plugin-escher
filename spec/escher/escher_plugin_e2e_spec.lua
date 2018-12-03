@@ -116,7 +116,7 @@ describe("Plugin: escher (access) #e2e", function()
                 ["Content-Type"] = "application/json"
               }
             })
-  
+
             assert.res_status(201, create_call)
 
             local retrieve_call = assert(helpers.admin_client():send {
@@ -142,7 +142,7 @@ describe("Plugin: escher (access) #e2e", function()
                 ["Content-Type"] = "application/json"
               }
             })
-  
+
             assert.res_status(201, create_call)
 
             local delete_call = assert(helpers.admin_client():send {
@@ -154,7 +154,7 @@ describe("Plugin: escher (access) #e2e", function()
           end)
     end)
 
-    describe("Setup plugin with wrong config", function()
+    describe("Plugin setup", function()
         local service, route, plugin, consumer
 
         before_each(function()
@@ -163,24 +163,58 @@ describe("Plugin: escher (access) #e2e", function()
             route = get_response_body(TestHelper.setup_route_for_service(service.id))
         end)
 
-        it("should respond 400 when encryption file does not exists", function()
-            local res = TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/kong.txt" })
+        context("when using a wrong config", function()
+            it("should respond 400 when encryption file does not exists", function()
+                local res = TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/kong.txt" })
 
-            assert.res_status(400, res)
+                assert.res_status(400, res)
+            end)
+
+            it("should respond 400 when encryption file path does not equal with the other escher plugin configurations", function()
+                local other_service = get_response_body(TestHelper.setup_service("second"))
+
+                get_response_body(TestHelper.setup_route_for_service(other_service.id))
+
+                local f = io.open("/tmp/other_secret.txt", "w")
+                f:close()
+
+                TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/secret.txt" })
+                local second_res = TestHelper.setup_plugin_for_service(other_service.id, 'escher', { encryption_key_path = "/tmp/other_secret.txt" })
+
+                assert.res_status(400, second_res)
+            end)
+
+            it("should indicate failure when message_template is not a valid JSON", function()
+                local plugin_response = TestHelper.setup_plugin_for_service(service.id, "escher", {
+                    message_template = "not a JSON"
+                })
+
+                local body = assert.res_status(400, plugin_response)
+                local plugin = cjson.decode(body)
+
+                assert.is_equal("message_template should be valid JSON object", plugin["config.message_template"])
+            end)
+
+            it("should indicate failure when status code is not in the HTTP status range", function()
+                local plugin_response = TestHelper.setup_plugin_for_service(service.id, "escher", {
+                    status_code = 600
+                })
+
+                local body = assert.res_status(400, plugin_response)
+                local plugin = cjson.decode(body)
+
+                assert.is_equal("status code is invalid", plugin["config.status_code"])
+            end)
         end)
 
-        it("should respond 400 when encryption file path does not equal with the other escher plugin configurations", function()
-            local other_service = get_response_body(TestHelper.setup_service("second"))
+        it("should use dafaults configs aren't provided", function()
+            local plugin_response = TestHelper.setup_plugin_for_service(service.id, "escher", {})
 
-            get_response_body(TestHelper.setup_route_for_service(other_service.id))
+            local body = assert.res_status(201, plugin_response)
+            local plugin = cjson.decode(body)
 
-            local f = io.open("/tmp/other_secret.txt", "w")
-            f:close()
-
-            TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/secret.txt" })
-            local second_res = TestHelper.setup_plugin_for_service(other_service.id, 'escher', { encryption_key_path = "/tmp/other_secret.txt" })
-
-            assert.res_status(400, second_res)
+            assert.is_equal('{"message": "%s"}', plugin.config.message_template)
+            assert.is_equal(401, plugin.config.status_code)
         end)
     end)
 
