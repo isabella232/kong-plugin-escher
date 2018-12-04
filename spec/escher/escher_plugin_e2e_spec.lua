@@ -150,7 +150,7 @@ describe("Plugin: escher (access) #e2e", function()
                 path = "/consumers/" .. consumer.id .. "/escher_key/yet_another_test_key"
               })
 
-            local body = assert.res_status(204, delete_call)
+            assert.res_status(204, delete_call)
           end)
     end)
 
@@ -463,14 +463,10 @@ describe("Plugin: escher (access) #e2e", function()
 
                 service = get_response_body(TestHelper.setup_service('testservice', 'http://mockbin.org/request'))
                 route = get_response_body(TestHelper.setup_route_for_service(service.id, '/'))
-
-                anonymous = get_response_body(TestHelper.setup_consumer('anonymous'))
                 plugin = get_response_body(TestHelper.setup_plugin_for_service(service.id, 'escher', {
                     encryption_key_path = "/secret.txt",
                     status_code = 400
                 }))
-
-                consumer = get_response_body(TestHelper.setup_consumer('TestUser'))
             end)
 
             it("should reject request with given HTTP status", function()

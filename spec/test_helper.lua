@@ -3,7 +3,7 @@ local helpers = require "spec.helpers"
 local TestHelper = {}
 
 function TestHelper.setup_service(service_name, upstream_url)
-    name = service_name or 'testservice'
+    service_name = service_name or 'testservice'
     upstream_url = upstream_url or 'http://mockbin:8080/request'
 
     return assert(helpers.admin_client():send {
