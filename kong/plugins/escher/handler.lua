@@ -88,7 +88,7 @@ function EscherHandler:access(original_config)
     end)
 
     if not success then
-        Logger.getInstance(ngx).logError(result)
+        Logger.getInstance(ngx):logError(result)
         return responses.send(500, "An unexpected error occurred.")
     end
 

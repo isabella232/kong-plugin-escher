@@ -297,6 +297,21 @@ describe("Plugin: escher (access) #e2e", function()
                 assert.is_equal('{"message":"Could not parse X-Ems-Auth header"}', body)
             end)
 
+            it("responds with status 401 when X-EMS-Date header is invalid", function()
+                local res = assert(helpers.proxy_client():send {
+                    method = "GET",
+                    path = "/request",
+                    headers = {
+                        ["X-EMS-DATE"] = 'invalid date',
+                        ["Host"] = "test1.com",
+                        ["X-EMS-AUTH"] = 'invalid header'
+                    }
+                })
+
+                local body = assert.res_status(401, res)
+                assert.is_equal('{"message":"Could not parse X-Ems-Date header"}', body)
+            end)
+
             it("responds with status 200 when X-EMS-AUTH header is valid", function()
                 assert(helpers.admin_client():send {
                     method = "POST",

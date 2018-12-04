@@ -1,5 +1,6 @@
-local Escher = require "escher"
 local Object = require "classic"
+local date = require 'date'
+local Escher = require "escher"
 
 local EscherWrapper = Object:extend()
 
@@ -37,14 +38,23 @@ function EscherWrapper:authenticate()
         ["dateHeaderName"] = "X-Ems-Date",
     })
 
-    local headers, mandatory_headers_to_sign = parse_headers(self.ngx.req.get_headers())
+    local request_headers = self.ngx.req.get_headers()
+
+    local date_as_string = request_headers['x_ems_date']
+    local success = pcall(date, date_as_string)
+
+    if date_as_string and not success then
+        return nil, "Could not parse X-Ems-Date header"
+    end
+
+    local headers_as_array, mandatory_headers_to_sign = parse_headers(request_headers)
 
     self.ngx.req.read_body()
 
     local request = {
         ["method"] = self.ngx.req.get_method(),
         ["url"] = self.ngx.var.request_uri,
-        ["headers"] = headers,
+        ["headers"] = headers_as_array,
         ["body"] = self.ngx.req.get_body_data()
     }
 
