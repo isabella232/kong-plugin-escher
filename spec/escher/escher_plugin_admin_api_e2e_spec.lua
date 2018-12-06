@@ -12,15 +12,15 @@ local function setup_test_env()
 
     local service = get_response_body(TestHelper.setup_service())
     local route = get_response_body(TestHelper.setup_route_for_service(service.id))
-    local plugin = get_response_body(TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/secret.txt" }))
-    local consumer = get_response_body(TestHelper.setup_consumer('test'))
+    local plugin = get_response_body(TestHelper.setup_plugin_for_service(service.id, "escher", { encryption_key_path = "/secret.txt" }))
+    local consumer = get_response_body(TestHelper.setup_consumer("test"))
 
     return plugin, consumer
 end
 
 describe("Plugin: escher #e2e Admin API", function()
     setup(function()
-        helpers.start_kong({ custom_plugins = 'escher' })
+        helpers.start_kong({ custom_plugins = "escher" })
     end)
 
     teardown(function()
@@ -36,7 +36,7 @@ describe("Plugin: escher #e2e Admin API", function()
     it("registered the plugin globally", function()
         local res = assert(helpers.admin_client():send {
             method = "GET",
-            path = "/plugins/" .. plugin.id,
+            path = "/plugins/" .. plugin.id
         })
 
         local body = assert.res_status(200, res)
@@ -49,40 +49,43 @@ describe("Plugin: escher #e2e Admin API", function()
     it("registered the plugin for the api", function()
         local res = assert(helpers.admin_client():send {
             method = "GET",
-            path = "/plugins/" ..plugin.id,
+            path = "/plugins/" .. plugin.id
         })
+
         local body = assert.res_status(200, res)
         local json = cjson.decode(body)
+
         assert.is_equal(api_id, json.api_id)
     end)
 
     it("should create a new escher key for the given consumer", function()
-      local res = assert(helpers.admin_client():send {
+        local res = assert(helpers.admin_client():send {
             method = "POST",
             path = "/consumers/" .. consumer.id .. "/escher_key/",
             body = {
-                key = 'test_key',
-                secret = 'test_secret'
+                key = "test_key",
+                secret = "test_secret"
             },
             headers = {
                 ["Content-Type"] = "application/json"
             }
-      })
+        })
 
-      local body = assert.res_status(201, res)
-      local json = cjson.decode(body)
-      assert.is_equal('test_key', json.key)
+        local body = assert.res_status(201, res)
+        local json = cjson.decode(body)
+
+        assert.is_equal("test_key", json.key)
     end)
 
     it("should create a new escher key with encrypted secret using encryption key from file", function()
         local ecrypto = TestHelper.get_easy_crypto()
 
-        local secret = 'test_secret'
+        local secret = "test_secret"
         local res = assert(helpers.admin_client():send {
             method = "POST",
             path = "/consumers/" .. consumer.id .. "/escher_key/",
             body = {
-                key = 'test_key_v2',
+                key = "test_key_v2",
                 secret = secret
             },
             headers = {
@@ -93,7 +96,7 @@ describe("Plugin: escher #e2e Admin API", function()
         local body = assert.res_status(201, res)
         local json = cjson.decode(body)
 
-        assert.is_equal('test_key_v2', json.key)
+        assert.is_equal("test_key_v2", json.key)
         assert.are_not.equals(secret, json.secret)
 
         local encryption_key = TestHelper.load_encryption_key_from_file(plugin.config.encryption_key_path)
@@ -106,8 +109,8 @@ describe("Plugin: escher #e2e Admin API", function()
             method = "POST",
             path = "/consumers/" .. consumer.id .. "/escher_key/",
             body = {
-                key = 'another_test_key',
-                secret = 'test_secret'
+                key = "another_test_key",
+                secret = "test_secret"
             },
             headers = {
                 ["Content-Type"] = "application/json"
@@ -123,7 +126,8 @@ describe("Plugin: escher #e2e Admin API", function()
 
         local body = assert.res_status(200, retrieve_call)
         local json = cjson.decode(body)
-        assert.is_equal('another_test_key', json.key)
+
+        assert.is_equal("another_test_key", json.key)
         assert.is_equal(nil, json.secret)
     end)
 
@@ -132,8 +136,8 @@ describe("Plugin: escher #e2e Admin API", function()
             method = "POST",
             path = "/consumers/" .. consumer.id .. "/escher_key/",
             body = {
-                key = 'yet_another_test_key',
-                secret = 'test_secret'
+                key = "yet_another_test_key",
+                secret = "test_secret"
             },
             headers = {
                 ["Content-Type"] = "application/json"
@@ -154,10 +158,10 @@ describe("Plugin: escher #e2e Admin API", function()
         local test_cases = {"GET", "DELETE"}
 
         for _, method in ipairs(test_cases) do
-            it("should respond with 404 on " .. method .. " request" , function()
+            it("should respond with 404 on " .. method .. " request", function()
                 local retrieve_call = assert(helpers.admin_client():send {
                     method = method,
-                    path = "/consumers/" .. consumer.id .. "/escher_key/another_test_key"
+                    path = "/consumers/" .. consumer.id .. "/escher_key/" .. consumer.id
                 })
 
                 local body = assert.res_status(404, retrieve_call)
