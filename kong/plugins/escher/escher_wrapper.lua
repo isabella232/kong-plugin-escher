@@ -23,16 +23,15 @@ local function key_retriever(key_db)
     end
 end
 
-function EscherWrapper:new(ngx, key_db)
-    self.ngx = ngx
+function EscherWrapper:new(key_db)
     self.key_db = key_db
 end
 
-function EscherWrapper:authenticate()
+function EscherWrapper:authenticate(request)
     local escher = EscherFactory.create()
 
-    local request_headers = self.ngx.req.get_headers()
-    local date_as_string = request_headers['x_ems_date']
+    local request_headers = request.headers
+    local date_as_string = request_headers['x-ems-date']
     local success = pcall(date, date_as_string)
 
     if date_as_string and not success then
@@ -41,16 +40,14 @@ function EscherWrapper:authenticate()
 
     local headers_as_array, mandatory_headers_to_sign = parse_headers(request_headers)
 
-    self.ngx.req.read_body()
-
-    local request = {
-        ["method"] = self.ngx.req.get_method(),
-        ["url"] = self.ngx.var.request_uri,
+    local transformed_request = {
+        ["method"] = request.method,
+        ["url"] = request.url,
         ["headers"] = headers_as_array,
-        ["body"] = self.ngx.req.get_body_data()
+        ["body"] = request.body
     }
 
-    local api_key, err = escher:authenticate(request, key_retriever(self.key_db), mandatory_headers_to_sign)
+    local api_key, err = escher:authenticate(transformed_request, key_retriever(self.key_db), mandatory_headers_to_sign)
 
     if not api_key then
         return nil, err
