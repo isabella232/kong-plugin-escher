@@ -19,7 +19,6 @@ local function setup_test_env()
 end
 
 describe("Plugin: escher #e2e Admin API", function()
-
     setup(function()
         helpers.start_kong({ custom_plugins = 'escher' })
     end)
@@ -39,6 +38,7 @@ describe("Plugin: escher #e2e Admin API", function()
             method = "GET",
             path = "/plugins/" .. plugin.id,
         })
+
         local body = assert.res_status(200, res)
         local json = cjson.decode(body)
 
@@ -58,15 +58,15 @@ describe("Plugin: escher #e2e Admin API", function()
 
     it("should create a new escher key for the given consumer", function()
       local res = assert(helpers.admin_client():send {
-          method = "POST",
-          path = "/consumers/" .. consumer.id .. "/escher_key/",
-          body = {
-            key = 'test_key',
-            secret = 'test_secret'
-          },
-          headers = {
-            ["Content-Type"] = "application/json"
-          }
+            method = "POST",
+            path = "/consumers/" .. consumer.id .. "/escher_key/",
+            body = {
+                key = 'test_key',
+                secret = 'test_secret'
+            },
+            headers = {
+                ["Content-Type"] = "application/json"
+            }
       })
 
       local body = assert.res_status(201, res)
@@ -82,11 +82,11 @@ describe("Plugin: escher #e2e Admin API", function()
             method = "POST",
             path = "/consumers/" .. consumer.id .. "/escher_key/",
             body = {
-              key = 'test_key_v2',
-              secret = secret
+                key = 'test_key_v2',
+                secret = secret
             },
             headers = {
-              ["Content-Type"] = "application/json"
+                ["Content-Type"] = "application/json"
             }
         })
 
@@ -103,15 +103,15 @@ describe("Plugin: escher #e2e Admin API", function()
 
     it("should be able to retrieve an escher key", function()
         local create_call = assert(helpers.admin_client():send {
-          method = "POST",
-          path = "/consumers/" .. consumer.id .. "/escher_key/",
-          body = {
-            key = 'another_test_key',
-            secret = 'test_secret'
-          },
-          headers = {
-            ["Content-Type"] = "application/json"
-          }
+            method = "POST",
+            path = "/consumers/" .. consumer.id .. "/escher_key/",
+            body = {
+                key = 'another_test_key',
+                secret = 'test_secret'
+            },
+            headers = {
+                ["Content-Type"] = "application/json"
+            }
         })
 
         assert.res_status(201, create_call)
@@ -119,7 +119,7 @@ describe("Plugin: escher #e2e Admin API", function()
         local retrieve_call = assert(helpers.admin_client():send {
             method = "GET",
             path = "/consumers/" .. consumer.id .. "/escher_key/another_test_key"
-          })
+        })
 
         local body = assert.res_status(200, retrieve_call)
         local json = cjson.decode(body)
@@ -129,15 +129,15 @@ describe("Plugin: escher #e2e Admin API", function()
 
     it("should be able to delete an escher key", function()
         local create_call = assert(helpers.admin_client():send {
-          method = "POST",
-          path = "/consumers/" .. consumer.id .. "/escher_key/",
-          body = {
-            key = 'yet_another_test_key',
-            secret = 'test_secret'
-          },
-          headers = {
-            ["Content-Type"] = "application/json"
-          }
+            method = "POST",
+            path = "/consumers/" .. consumer.id .. "/escher_key/",
+            body = {
+                key = 'yet_another_test_key',
+                secret = 'test_secret'
+            },
+            headers = {
+                ["Content-Type"] = "application/json"
+            }
         })
 
         assert.res_status(201, create_call)
@@ -145,8 +145,26 @@ describe("Plugin: escher #e2e Admin API", function()
         local delete_call = assert(helpers.admin_client():send {
             method = "DELETE",
             path = "/consumers/" .. consumer.id .. "/escher_key/yet_another_test_key"
-          })
+        })
 
         assert.res_status(204, delete_call)
-      end)
+    end)
+
+    context("when escher key does not exist", function()
+        local test_cases = {"GET", "DELETE"}
+
+        for _, method in ipairs(test_cases) do
+            it("should respond with 404 on " .. method .. " request" , function()
+                local retrieve_call = assert(helpers.admin_client():send {
+                    method = method,
+                    path = "/consumers/" .. consumer.id .. "/escher_key/another_test_key"
+                })
+
+                local body = assert.res_status(404, retrieve_call)
+                local json = cjson.decode(body)
+
+                assert.are.same({ message = "Not found" }, json)
+            end)
+        end
+    end)
 end)
