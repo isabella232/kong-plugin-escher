@@ -1,6 +1,6 @@
 local Object = require "classic"
-local date = require 'date'
-local Escher = require "escher"
+local date = require "date"
+local EscherFactory = require "kong.plugins.escher.escher_factory"
 
 local EscherWrapper = Object:extend()
 
@@ -29,17 +29,9 @@ function EscherWrapper:new(ngx, key_db)
 end
 
 function EscherWrapper:authenticate()
-    local escher = Escher:new({
-        ["vendorKey"] = "EMS",
-        ["algoPrefix"] = "EMS",
-        ["hashAlgo"] = "SHA256",
-        ["credentialScope"] = "eu/suite/ems_request",
-        ["authHeaderName"] = "X-Ems-Auth",
-        ["dateHeaderName"] = "X-Ems-Date",
-    })
+    local escher = EscherFactory.create()
 
     local request_headers = self.ngx.req.get_headers()
-
     local date_as_string = request_headers['x_ems_date']
     local success = pcall(date, date_as_string)
 
