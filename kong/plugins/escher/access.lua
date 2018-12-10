@@ -3,6 +3,7 @@ local constants = require "kong.constants"
 local ConsumerDb = require "kong.plugins.escher.consumer_db"
 local Crypt = require "kong.plugins.escher.crypt"
 local EscherWrapper = require "kong.plugins.escher.escher_wrapper"
+local RequestElements = require "kong.plugins.escher.request_elements"
 local KeyDb = require "kong.plugins.escher.key_db"
 local Logger = require "logger"
 local responses = require "kong.tools.responses"
@@ -28,17 +29,6 @@ local function get_transformed_response(template, response_message)
     return cjson.decode(string.format(template, response_message))
 end
 
-local function collect_request_for_auth()
-    ngx.req.read_body()
-
-    return {
-        ["method"] = ngx.req.get_method(),
-        ["url"] = ngx.var.request_uri,
-        ["headers"] = ngx.req.get_headers(),
-        ["body"] = ngx.req.get_body_data()
-    }
-end
-
 local function anonymous_passthrough_is_enabled(plugin_config)
     return plugin_config.anonymous ~= nil
 end
@@ -48,7 +38,7 @@ function Access.execute(conf)
     local key_db = KeyDb(crypt)
     local escher = EscherWrapper(key_db)
 
-    local request = collect_request_for_auth()
+    local request = RequestElements(ngx):collect()
 
     local escher_key, err = escher:authenticate(request)
 
