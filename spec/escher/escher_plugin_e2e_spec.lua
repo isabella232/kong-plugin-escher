@@ -39,10 +39,19 @@ describe("Plugin: escher (access) #e2e", function()
         end)
 
         context("when using a wrong config", function()
-            it("should respond 400 when encryption file does not exists", function()
-                local res = TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/kong.txt" })
+            it("should respond 400 when required config values not provided", function()
+                local plugin_response = TestHelper.setup_plugin_for_service(service.id, 'escher', {})
 
-                assert.res_status(400, res)
+                local body = assert.res_status(400, plugin_response)
+                local plugin = cjson.decode(body)
+
+                assert.is_equal("encryption_key_path is required", plugin["config.encryption_key_path"])
+            end)
+
+            it("should respond 400 when encryption file does not exist", function()
+                local plugin_response = TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/kong.txt" })
+
+                assert.res_status(400, plugin_response)
             end)
 
             it("should respond 400 when encryption file path does not equal with the other escher plugin configurations", function()
@@ -83,7 +92,9 @@ describe("Plugin: escher (access) #e2e", function()
         end)
 
         it("should use dafaults configs aren't provided", function()
-            local plugin_response = TestHelper.setup_plugin_for_service(service.id, "escher", {})
+            local plugin_response = TestHelper.setup_plugin_for_service(service.id, "escher", {
+                encryption_key_path = "/secret.txt"
+            })
 
             local body = assert.res_status(201, plugin_response)
             local plugin = cjson.decode(body)
@@ -133,7 +144,6 @@ describe("Plugin: escher (access) #e2e", function()
         local request = {
             ["method"] = "GET",
             ["headers"] = request_headers,
-            --["body"] = '',
             ["url"] = "/request"
         }
 
