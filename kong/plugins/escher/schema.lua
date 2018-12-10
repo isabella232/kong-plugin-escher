@@ -1,6 +1,7 @@
 local cjson = require "cjson"
 local Errors = require "kong.dao.errors"
 local utils = require "kong.tools.utils"
+local EncryptionKeyPathRetriever =  require "kong.plugins.escher.encryption_key_path_retriever"
 
 local function ensure_valid_uuid_or_nil(anonymous)
     if anonymous == nil or utils.is_valid_uuid(anonymous) then
@@ -23,12 +24,10 @@ local function ensure_file_exists(file_path)
 end
 
 local function ensure_same_encryption_key_is_used(schema, config, dao, is_updating)
-    local escher_plugins = dao:find_all({ name = "escher" })
+    local path = EncryptionKeyPathRetriever(dao):find_key_path()
 
-    for _, plugin in ipairs(escher_plugins) do
-        if plugin.config.encryption_key_path ~= config.encryption_key_path then
-            return false, Errors.schema("All Escher plugins must be configured to use the same encryption file.")
-        end
+    if path and path ~= config.encryption_key_path then
+        return false, Errors.schema("All Escher plugins must be configured to use the same encryption file.")
     end
 
     return true

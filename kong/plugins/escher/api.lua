@@ -1,15 +1,6 @@
 local crud = require "kong.api.crud_helpers"
 local Crypt = require "kong.plugins.escher.crypt"
-
-local function retrieve_an_escher_plugin_config(plugins_dao)
-    local escher_plugins = plugins_dao:find_page({ name = "escher" }, 0, 1)
-
-    return escher_plugins[1].config
-end
-
-local function retrieve_encryption_key_path_from_config(config)
-    return config.encryption_key_path
-end
+local EncryptionKeyPathRetriever =  require "kong.plugins.escher.encryption_key_path_retriever"
 
 return {
     ["/consumers/:username_or_id/escher_key/"] = {
@@ -19,8 +10,13 @@ return {
         end,
 
         POST = function(self, dao_factory, helpers)
-            local config = retrieve_an_escher_plugin_config(dao_factory.plugins)
-            local path = retrieve_encryption_key_path_from_config(config)
+            local path = EncryptionKeyPathRetriever(dao_factory.plugins):find_key_path()
+
+            if not path then
+                return helpers.responses.send(412, {
+                    message = "Encryption key was not defined"
+                })
+            end
 
             local crypt = Crypt(path)
             local encrypted_secret = crypt:encrypt(self.params.secret)

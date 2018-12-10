@@ -27,6 +27,7 @@ build = {
     ["kong.plugins.escher.consumer_db"] = "kong/plugins/escher/consumer_db.lua",
     ["kong.plugins.escher.crypt"] = "kong/plugins/escher/crypt.lua",
     ["kong.plugins.escher.daos"] = "kong/plugins/escher/daos.lua",
+    ["kong.plugins.escher.encryption_key_path_retriever"] = "kong/plugins/escher/encryption_key_path_retriever.lua",
     ["kong.plugins.escher.escher_wrapper"] = "kong/plugins/escher/escher_wrapper.lua",
     ["kong.plugins.escher.handler"] = "kong/plugins/escher/handler.lua",
     ["kong.plugins.escher.init_worker"] = "kong/plugins/escher/init_worker.lua",

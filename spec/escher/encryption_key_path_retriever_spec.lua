@@ -1,4 +1,4 @@
-local EncryptionKeyPathRetriever = require "kong.plugins.escher.encryption_key_retriever"
+local EncryptionKeyPathRetriever = require "kong.plugins.escher.encryption_key_path_retriever"
 
 describe("encryption key retriever", function()
 
@@ -30,9 +30,15 @@ describe("encryption key retriever", function()
 
             local key_retriever = EncryptionKeyPathRetriever(plugins_dao)
 
-            local key_from_db = key_retriever:find_key_path()
+            assert.are.same(plugins[1].config.encryption_key_path, key_retriever:find_key_path())
+        end)
 
-            assert.are.same(plugins[1].config.encryption_key_path, key_from_db.encryption_key_path)
+        context("when plugin has yet to be registered", function()
+            it("should return nil", function()
+                local key_retriever = EncryptionKeyPathRetriever(plugins_dao)
+
+                assert.is_Nil(key_retriever:find_key_path())
+            end)
         end)
     end)
 end)
