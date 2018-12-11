@@ -33,21 +33,13 @@ local encryption_engine = function()
 end
 
 local encrypter = function(encryption_key_path, subject)
-    if encryption_key_path == nil then
-        return subject
-    else
-        local encryption_key = load_key(encryption_key_path)
-        return encryption_engine():encrypt(encryption_key, subject)
-    end
+    local encryption_key = load_key(encryption_key_path)
+    return encryption_engine():encrypt(encryption_key, subject)
 end
 
 local decrypter = function(encryption_key_path, subject)
-    if encryption_key_path == nil then
-        return subject
-    else
-        local encryption_key = load_key(encryption_key_path)
-        return encryption_engine():decrypt(encryption_key, subject)
-    end
+    local encryption_key = load_key(encryption_key_path)
+    return encryption_engine():decrypt(encryption_key, subject)
 end
 
 local _M = Object:extend()
