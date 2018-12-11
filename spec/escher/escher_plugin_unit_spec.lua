@@ -29,15 +29,13 @@ describe("escher plugin", function()
         consumer_id = '0001-1234'
     }
 
-    ConsumerDb.find_by_id = function(consumer_id, anonymous)
+    ConsumerDb.find_by_id = function(consumer_id)
         if consumer_id == 'anonym123' then
             return anonymous_consumer
         else
             return test_consumer
         end
     end
-
-
 
     before_each(function()
         local ngx_req_headers = {}

@@ -48,7 +48,7 @@ function Access.execute(conf)
         set_consumer(consumer, escher_key)
         Logger.getInstance(ngx):logInfo({msg = "Escher authentication was successful.", ["x-ems-auth"] = request.headers['x-ems-auth']})
     elseif anonymous_passthrough_is_enabled(conf) then
-        local anonymous = ConsumerDb.find_by_id(conf.anonymous, true)
+        local anonymous = ConsumerDb.find_by_id(conf.anonymous)
         set_consumer(anonymous)
         Logger.getInstance(ngx):logWarning({msg = "Escher authentication skipped.", ["x-ems-auth"] = request.headers['x-ems-auth']})
     else
