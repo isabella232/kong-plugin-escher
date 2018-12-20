@@ -1,28 +1,36 @@
 local helpers = require "spec.helpers"
 local cjson = require "cjson"
 local Escher = require "escher"
-local TestHelper = require "spec.test_helper"
 
-local function get_response_body(response)
-    local body = assert.res_status(201, response)
-    return cjson.decode(body)
-end
+local KongSdk = require "spec.kong_sdk"
 
-local function setup_test_env()
-    helpers.dao:truncate_tables()
+local function create_request_sender(http_client)
+    return function(request)
+        local response = assert(http_client:send(request))
 
-    local service = get_response_body(TestHelper.setup_service())
-    local route = get_response_body(TestHelper.setup_route_for_service(service.id))
-    local plugin = get_response_body(TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/secret.txt" }))
-    local consumer = get_response_body(TestHelper.setup_consumer('test'))
+        local raw_body = assert(response:read_body())
+        local success, parsed_body = pcall(cjson.decode, raw_body)
 
-    return service, route, plugin, consumer
+        return {
+            body = success and parsed_body or raw_body,
+            headers = response.headers,
+            status = response.status
+        }
+    end
 end
 
 describe("Plugin: escher (access) #e2e", function()
 
+    local kong_sdk, send_request, send_admin_request
+
+    local service
+
     setup(function()
         helpers.start_kong({ custom_plugins = 'escher' })
+
+        kong_sdk = KongSdk.from_admin_client()
+        send_request = create_request_sender(helpers.proxy_client())
+        send_admin_request = create_request_sender(helpers.admin_client())
     end)
 
     teardown(function()
@@ -30,87 +38,122 @@ describe("Plugin: escher (access) #e2e", function()
     end)
 
     describe("Plugin setup", function()
-        local service, route, plugin, consumer
+        local service, consumer
 
         before_each(function()
             helpers.dao:truncate_tables()
-            service = get_response_body(TestHelper.setup_service())
-            route = get_response_body(TestHelper.setup_route_for_service(service.id))
+
+            service = kong_sdk.services:create({
+                name = "testservice",
+                url = "http://mockbin:8080/request"
+            })
+
+            kong_sdk.routes:create_for_service(service.id, "/")
+
+            consumer = kong_sdk.consumers:create({
+                username = 'test',
+            })
         end)
 
         context("when using a wrong config", function()
             it("should respond 400 when required config values not provided", function()
-                local plugin_response = TestHelper.setup_plugin_for_service(service.id, 'escher', {})
 
-                local body = assert.res_status(400, plugin_response)
-                local plugin = cjson.decode(body)
+                local success, response = pcall(function()
+                    kong_sdk.plugins:create({
+                        service_id = service.id,
+                        name = "escher",
+                        config = {}
+                    })
+                end)
 
-                assert.is_equal("encryption_key_path is required", plugin["config.encryption_key_path"])
+                assert.are.equal("encryption_key_path is required", response.body["config.encryption_key_path"])
             end)
 
             it("should respond 400 when encryption file does not exist", function()
-                local plugin_response = TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/kong.txt" })
 
-                assert.res_status(400, plugin_response)
+                local success, response = pcall(function()
+                    kong_sdk.plugins:create({
+                        service_id = service.id,
+                        name = "escher",
+                        config = { encryption_key_path = "/non-existing-file.txt" }
+                    })
+                end)
+
+                assert.are.equal(400, response.status)
             end)
 
             it("should respond 400 when encryption file path does not equal with the other escher plugin configurations", function()
-                local other_service = get_response_body(TestHelper.setup_service("second"))
 
-                get_response_body(TestHelper.setup_route_for_service(other_service.id))
+                local other_service = kong_sdk.services:create({
+                    name = "second",
+                    url = "http://mockbin:8080/request"
+                })
+
+                kong_sdk.routes:create_for_service(other_service.id, "/")
 
                 local f = io.open("/tmp/other_secret.txt", "w")
                 f:close()
 
-                TestHelper.setup_plugin_for_service(service.id, 'escher', { encryption_key_path = "/secret.txt" })
-                local second_res = TestHelper.setup_plugin_for_service(other_service.id, 'escher', { encryption_key_path = "/tmp/other_secret.txt" })
+                kong_sdk.plugins:create({
+                    service_id = service.id,
+                    name = "escher",
+                    config = { encryption_key_path = "/secret.txt" }
+                })
 
-                assert.res_status(400, second_res)
+                local success, response = pcall(function()
+                    kong_sdk.plugins:create({
+                        service_id = other_service.id,
+                        name = "escher",
+                        config = { encryption_key_path = "/tmp/other_secret.txt" }
+                    })
+                end)
+
+                assert.are.equal(400, response.status)
             end)
 
             it("should indicate failure when message_template is not a valid JSON", function()
-                local plugin_response = TestHelper.setup_plugin_for_service(service.id, "escher", {
-                    message_template = "not a JSON"
-                })
 
-                local body = assert.res_status(400, plugin_response)
-                local plugin = cjson.decode(body)
+                local success, response = pcall(function()
+                    kong_sdk.plugins:create({
+                        service_id = service.id,
+                        name = "escher",
+                        config = { message_template = "not a JSON" }
+                    })
+                end)
 
-                assert.is_equal("message_template should be valid JSON object", plugin["config.message_template"])
+                assert.are.equal(400, response.status)
+                assert.are.equal("message_template should be valid JSON object", response.body["config.message_template"])
             end)
 
             it("should indicate failure when status code is not in the HTTP status range", function()
-                local plugin_response = TestHelper.setup_plugin_for_service(service.id, "escher", {
-                    status_code = 600
-                })
 
-                local body = assert.res_status(400, plugin_response)
-                local plugin = cjson.decode(body)
+                local success, response = pcall(function()
+                    kong_sdk.plugins:create({
+                        service_id = service.id,
+                        name = "escher",
+                        config = { status_code = 600 }
+                    })
+                end)
 
-                assert.is_equal("status code is invalid", plugin["config.status_code"])
+                assert.are.equal(400, response.status)
+                assert.are.equal("status code is invalid", response.body["config.status_code"])
             end)
         end)
 
         it("should use dafaults configs aren't provided", function()
-            local plugin_response = TestHelper.setup_plugin_for_service(service.id, "escher", {
-                encryption_key_path = "/secret.txt"
+
+            local plugin = kong_sdk.plugins:create({
+                service_id = service.id,
+                name = "escher",
+                config = { encryption_key_path = "/secret.txt" }
             })
 
-            local body = assert.res_status(201, plugin_response)
-            local plugin = cjson.decode(body)
-
-            assert.is_equal('{"message": "%s"}', plugin.config.message_template)
-            assert.is_equal(401, plugin.config.status_code)
+            assert.are.equal('{"message": "%s"}', plugin.config.message_template)
+            assert.are.equal(401, plugin.config.status_code)
         end)
     end)
 
     describe("Authentication", function()
-
-        local service, route, plugin, consumer
-
-        before_each(function()
-            service, route, plugin, consumer = setup_test_env()
-        end)
 
         local current_date = os.date("!%Y%m%dT%H%M%SZ")
 
@@ -154,21 +197,45 @@ describe("Plugin: escher (access) #e2e", function()
         local ems_auth_header_wrong_api_key = escher_wrong_api_key:generateHeader(request, {})
 
         context("when anonymous user does not allowed", function()
+            local service, consumer
+
+            before_each(function()
+                helpers.dao:truncate_tables()
+
+                service = kong_sdk.services:create({
+                    name = "testservice",
+                    url = "http://mockbin:8080/request"
+                })
+
+                kong_sdk.routes:create_for_service(service.id, "/")
+
+                kong_sdk.plugins:create({
+                    service_id = service.id,
+                    name = "escher",
+                    config = { encryption_key_path = "/secret.txt" }
+                })
+
+                consumer = kong_sdk.consumers:create({
+                    username = 'test',
+                })
+            end)
+
             it("responds with status 401 if request not has X-EMS-DATE and X-EMS-AUTH header", function()
-                local res = assert(helpers.proxy_client():send {
+                local response = send_request({
                     method = "GET",
-                    path = "/request",
+                    path = "/",
                     headers = {
                         ["Host"] = "test1.com"
                     }
                 })
 
-                local body = assert.res_status(401, res)
-                assert.is_equal('{"message":"The x-ems-date header is missing"}', body)
+                assert.are.equal(401, response.status)
+                assert.are.equal("The x-ems-date header is missing", response.body.message)
+                assert.are.same({ message = "The x-ems-date header is missing" }, response.body)
             end)
 
             it("responds with status 401 when X-EMS-AUTH header is invalid", function()
-                local res = assert(helpers.proxy_client():send {
+                local response = send_request({
                     method = "GET",
                     path = "/request",
                     headers = {
@@ -178,12 +245,12 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                local body = assert.res_status(401, res)
-                assert.is_equal('{"message":"Could not parse X-Ems-Auth header"}', body)
+                assert.are.equal(401, response.status)
+                assert.are.same({ message = "Could not parse X-Ems-Auth header" }, response.body)
             end)
 
             it("responds with status 401 when X-EMS-Date header is invalid", function()
-                local res = assert(helpers.proxy_client():send {
+                local response = send_request({
                     method = "GET",
                     path = "/request",
                     headers = {
@@ -193,12 +260,12 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                local body = assert.res_status(401, res)
-                assert.is_equal('{"message":"Could not parse X-Ems-Date header"}', body)
+                assert.are.equal(401, response.status)
+                assert.are.same({ message = "Could not parse X-Ems-Date header" }, response.body)
             end)
 
             it("responds with status 200 when X-EMS-AUTH header is valid", function()
-                assert(helpers.admin_client():send {
+                send_admin_request({
                     method = "POST",
                     path = "/consumers/" .. consumer.id .. "/escher_key/",
                     body = {
@@ -210,7 +277,7 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                local res = assert(helpers.proxy_client():send {
+                local response = send_request({
                     method = "GET",
                     path = "/request",
                     headers = {
@@ -220,11 +287,11 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.res_status(200, res)
+                assert.are.equal(200, response.status)
             end)
 
             it("responds with status 401 when api key was not found", function()
-                local res = assert(helpers.proxy_client():send {
+                local response = send_request({
                     method = "GET",
                     path = "/request",
                     headers = {
@@ -234,28 +301,42 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                local body = assert.res_status(401, res)
-                assert.is_equal('{"message":"Invalid Escher key"}', body)
+                assert.are.equal(401, response.status)
+                assert.are.same({ message = "Invalid Escher key" }, response.body)
             end)
         end)
 
         context("when anonymous user allowed", function()
-            local service, route, anonymous, plugin, consumer
+
+            local service, consumer
 
             before_each(function()
                 helpers.dao:truncate_tables()
 
-                service = get_response_body(TestHelper.setup_service())
-                route = get_response_body(TestHelper.setup_route_for_service(service.id))
+                service = kong_sdk.services:create({
+                    name = "testservice",
+                    url = "http://mockbin:8080/request"
+                })
 
-                anonymous = get_response_body(TestHelper.setup_consumer('anonymous'))
-                plugin = get_response_body(TestHelper.setup_plugin_for_service(service.id, 'escher', {anonymous = anonymous.id, encryption_key_path = "/secret.txt"}))
+                kong_sdk.routes:create_for_service(service.id, "/")
 
-                consumer = get_response_body(TestHelper.setup_consumer('TestUser'))
+                anonymous = kong_sdk.consumers:create({
+                    username = 'anonymous',
+                })
+
+                kong_sdk.plugins:create({
+                    service_id = service.id,
+                    name = "escher",
+                    config = { anonymous = anonymous.id, encryption_key_path = "/secret.txt" }
+                })
+
+                consumer = kong_sdk.consumers:create({
+                    username = 'TestUser',
+                })
             end)
 
             it("responds with status 200 if request not has X-EMS-AUTH header", function()
-                local res = assert(helpers.proxy_client():send {
+                local response = send_request({
                     method = "GET",
                     path = "/request",
                     headers = {
@@ -263,11 +344,11 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.res_status(200, res)
+                assert.are.equal(200, response.status)
             end)
 
             it("should proxy the request with anonymous when X-EMS-AUTH header is invalid", function()
-                local res = assert(helpers.proxy_client():send {
+                local response = send_request({
                     method = "GET",
                     path = "/request",
                     headers = {
@@ -277,13 +358,12 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                local response = assert.res_status(200, res)
-                local body = cjson.decode(response)
-                assert.is_equal("anonymous", body.headers["x-consumer-username"])
+                assert.are.equal(200, response.status)
+                assert.are.equal("anonymous", response.body.headers["x-consumer-username"])
             end)
 
             it("should proxy the request with proper user when X-EMS-AUTH header is valid", function()
-                assert(helpers.admin_client():send {
+                send_admin_request({
                     method = "POST",
                     path = "/consumers/" .. consumer.id .. "/escher_key/",
                     body = {
@@ -295,7 +375,7 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                local res = assert(helpers.proxy_client():send {
+                local response = send_request({
                     method = "GET",
                     path = "/request",
                     headers = {
@@ -305,13 +385,12 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                local response = assert.res_status(200, res)
-                local body = cjson.decode(response)
-                assert.is_equal("TestUser", body.headers["x-consumer-username"])
+                assert.are.equal(200, response.status)
+                assert.are.equal("TestUser", response.body.headers["x-consumer-username"])
             end)
 
             it("responds with status 200 when api key was not found", function()
-                local res = assert(helpers.proxy_client():send {
+                local response = send_request({
                     method = "GET",
                     path = "/request",
                     headers = {
@@ -321,61 +400,74 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.res_status(200, res)
+                assert.are.equal(200, response.status)
             end)
         end)
 
         context("when message template is not default", function()
-            local service, route, plugin
+
+            local service
 
             before_each(function()
                 helpers.dao:truncate_tables()
 
-                service = get_response_body(TestHelper.setup_service('testservice', 'http://mockbin.org/request'))
-                route = get_response_body(TestHelper.setup_route_for_service(service.id, '/'))
-                plugin = get_response_body(TestHelper.setup_plugin_for_service(service.id, 'escher', {
-                    encryption_key_path = "/secret.txt",
-                    message_template = '{"custom-message": "%s"}'
-                }))
+                service = kong_sdk.services:create({
+                    name = "testservice",
+                    url = "http://mockbin:8080/request"
+                })
+
+                kong_sdk.routes:create_for_service(service.id, "/")
+
+                kong_sdk.plugins:create({
+                    service_id = service.id,
+                    name = "escher",
+                    config = { encryption_key_path = "/secret.txt", message_template = '{"custom-message": "%s"}' }
+                })
             end)
 
             it("should return response message in the given format", function()
-                local res = assert(helpers.proxy_client():send {
+                local response = send_request({
                     method = "GET",
                     path = "/request"
                 })
 
-                local response = assert.res_status(401, res)
-                local body = cjson.decode(response)
+                assert.are.equal(401, response.status)
 
-                assert.is_nil(body.message)
-                assert.not_nil(body['custom-message'])
-                assert.is_equal("The x-ems-date header is missing", body['custom-message'])
+                assert.is_nil(response.body.message)
+                assert.not_nil(response.body['custom-message'])
+                assert.are.equal("The x-ems-date header is missing", response.body['custom-message'])
             end)
 
         end)
 
         context('when given status code for failed authentications', function()
-            local service, route, plugin, consumer
+
+            local service
 
             before_each(function()
                 helpers.dao:truncate_tables()
 
-                service = get_response_body(TestHelper.setup_service('testservice', 'http://mockbin.org/request'))
-                route = get_response_body(TestHelper.setup_route_for_service(service.id, '/'))
-                plugin = get_response_body(TestHelper.setup_plugin_for_service(service.id, 'escher', {
-                    encryption_key_path = "/secret.txt",
-                    status_code = 400
-                }))
+                service = kong_sdk.services:create({
+                    name = "testservice",
+                    url = "http://mockbin:8080/request"
+                })
+
+                kong_sdk.routes:create_for_service(service.id, "/")
+
+                kong_sdk.plugins:create({
+                    service_id = service.id,
+                    name = "escher",
+                    config = { encryption_key_path = "/secret.txt", status_code = 400 }
+                })
             end)
 
             it("should reject request with given HTTP status", function()
-                local res = assert(helpers.proxy_client():send {
+                local response = send_request({
                     method = "GET",
                     path = "/request"
                 })
 
-                assert.res_status(400, res)
+                assert.are.equal(400, response.status)
             end)
 
         end)
