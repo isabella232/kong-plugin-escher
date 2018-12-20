@@ -1,68 +1,104 @@
 local helpers = require "spec.helpers"
 local cjson = require "cjson"
-local TestHelper = require "spec.test_helper"
+local KongSdk = require "spec.kong_sdk"
 
-local function get_response_body(response)
-    local body = assert.res_status(201, response)
-    return cjson.decode(body)
+local function create_request_sender(http_client)
+    return function(request)
+        local response = assert(http_client:send(request))
+
+        local raw_body = assert(response:read_body())
+        local success, parsed_body = pcall(cjson.decode, raw_body)
+
+        return {
+            body = success and parsed_body or raw_body,
+            headers = response.headers,
+            status = response.status
+        }
+    end
 end
 
-local function setup_test_env()
-    helpers.dao:truncate_tables()
+local function get_easy_crypto()
+    local EasyCrypto = require("resty.easy-crypto")
+    local ecrypto = EasyCrypto:new({
+        saltSize = 12,
+        ivSize = 16,
+        iterationCount = 10000
+    })
+    return ecrypto
+end
 
-    local service = get_response_body(TestHelper.setup_service())
-    local route = get_response_body(TestHelper.setup_route_for_service(service.id))
-    local plugin = get_response_body(TestHelper.setup_plugin_for_service(service.id, "escher", { encryption_key_path = "/secret.txt" }))
-    local consumer = get_response_body(TestHelper.setup_consumer("test"))
-
-    return plugin, consumer
+local function load_encryption_key_from_file(file_path)
+    local file = assert(io.open(file_path, "r"))
+    local encryption_key = file:read("*all")
+    file:close()
+    return encryption_key
 end
 
 describe("Plugin: escher #e2e Admin API", function()
+
+    local kong_sdk
+
     setup(function()
         helpers.start_kong({ custom_plugins = "escher" })
+
+        kong_sdk = KongSdk.from_admin_client()
+
+        send_request = create_request_sender(helpers.proxy_client())
+        send_admin_request = create_request_sender(helpers.admin_client())
     end)
 
     teardown(function()
         helpers.stop_kong(nil)
     end)
 
-
     context("when plugin exists", function()
 
-        local plugin, consumer
+        local service, plugin, consumer
 
         before_each(function()
-            plugin, consumer = setup_test_env()
+            helpers.dao:truncate_tables()
+
+            service = kong_sdk.services:create({
+                name = "testservice",
+                url = "http://mockbin:8080/request"
+            })
+
+            kong_sdk.routes:create_for_service(service.id, "/")
+
+            plugin = kong_sdk.plugins:create({
+                service_id = service.id,
+                name = "escher",
+                config = { encryption_key_path = "/secret.txt" }
+            })
+
+            consumer = kong_sdk.consumers:create({
+                username = 'test',
+            })
         end)
 
         it("registered the plugin globally", function()
-            local res = assert(helpers.admin_client():send {
+            local response = send_admin_request({
                 method = "GET",
                 path = "/plugins/" .. plugin.id
             })
 
-            local body = assert.res_status(200, res)
-            local json = cjson.decode(body)
-
-            assert.is_table(json)
-            assert.is_not.falsy(json.enabled)
+            assert.are.equal(200, response.status)
+            assert.is_table(response.body)
+            assert.is_not.falsy(response.body.enabled)
         end)
 
-        it("registered the plugin for the api", function()
-            local res = assert(helpers.admin_client():send {
+        it("registered the plugin for the service", function()
+            local response = send_admin_request({
                 method = "GET",
                 path = "/plugins/" .. plugin.id
             })
 
-            local body = assert.res_status(200, res)
-            local json = cjson.decode(body)
-
-            assert.is_equal(api_id, json.api_id)
+            assert.are.equal(200, response.status)
+            assert.are.equal(service.id, response.body.service_id)
         end)
 
         it("should create a new escher key for the given consumer", function()
-            local res = assert(helpers.admin_client():send {
+            local response = send_admin_request({
                 method = "POST",
                 path = "/consumers/" .. consumer.id .. "/escher_key/",
                 body = {
@@ -74,17 +110,16 @@ describe("Plugin: escher #e2e Admin API", function()
                 }
             })
 
-            local body = assert.res_status(201, res)
-            local json = cjson.decode(body)
-
-            assert.is_equal("test_key", json.key)
+            assert.are.equal(201, response.status)
+            assert.are.equal("test_key", response.body.key)
         end)
 
         it("should create a new escher key with encrypted secret using encryption key from file", function()
-            local ecrypto = TestHelper.get_easy_crypto()
+            local ecrypto = get_easy_crypto()
 
             local secret = "test_secret"
-            local res = assert(helpers.admin_client():send {
+
+            local response = send_admin_request({
                 method = "POST",
                 path = "/consumers/" .. consumer.id .. "/escher_key/",
                 body = {
@@ -96,19 +131,17 @@ describe("Plugin: escher #e2e Admin API", function()
                 }
             })
 
-            local body = assert.res_status(201, res)
-            local json = cjson.decode(body)
+            assert.are.equal(201, response.status)
+            assert.are.equal("test_key_v2", response.body.key)
+            assert.are_not.equal(secret, response.body.secret)
 
-            assert.is_equal("test_key_v2", json.key)
-            assert.are_not.equals(secret, json.secret)
+            local encryption_key = load_encryption_key_from_file(plugin.config.encryption_key_path)
 
-            local encryption_key = TestHelper.load_encryption_key_from_file(plugin.config.encryption_key_path)
-
-            assert.is_equal(secret, ecrypto:decrypt(encryption_key, json.secret))
+            assert.are.equal(secret, ecrypto:decrypt(encryption_key, response.body.secret))
         end)
 
         it("should be able to retrieve an escher key", function()
-            local create_call = assert(helpers.admin_client():send {
+            local create_escher_key_response = send_admin_request({
                 method = "POST",
                 path = "/consumers/" .. consumer.id .. "/escher_key/",
                 body = {
@@ -120,22 +153,20 @@ describe("Plugin: escher #e2e Admin API", function()
                 }
             })
 
-            assert.res_status(201, create_call)
+            assert.are.equal(201, create_escher_key_response.status)
 
-            local retrieve_call = assert(helpers.admin_client():send {
+            local retrieve_escher_key_response = send_admin_request({
                 method = "GET",
                 path = "/consumers/" .. consumer.id .. "/escher_key/another_test_key"
             })
 
-            local body = assert.res_status(200, retrieve_call)
-            local json = cjson.decode(body)
-
-            assert.is_equal("another_test_key", json.key)
-            assert.is_equal(nil, json.secret)
+            assert.are.equal(200, retrieve_escher_key_response.status)
+            assert.are.equal("another_test_key", retrieve_escher_key_response.body.key)
+            assert.is_nil(retrieve_escher_key_response.body.secret)
         end)
 
         it("should be able to delete an escher key", function()
-            local create_call = assert(helpers.admin_client():send {
+            local create_escher_key_response = send_admin_request({
                 method = "POST",
                 path = "/consumers/" .. consumer.id .. "/escher_key/",
                 body = {
@@ -147,14 +178,14 @@ describe("Plugin: escher #e2e Admin API", function()
                 }
             })
 
-            assert.res_status(201, create_call)
+            assert.are.equal(201, create_escher_key_response.status)
 
-            local delete_call = assert(helpers.admin_client():send {
+            local delete_escher_key_response = assert(helpers.admin_client():send {
                 method = "DELETE",
                 path = "/consumers/" .. consumer.id .. "/escher_key/yet_another_test_key"
             })
 
-            assert.res_status(204, delete_call)
+            assert.are.equal(204, delete_escher_key_response.status)
         end)
 
         context("when escher key does not exist", function()
@@ -162,15 +193,13 @@ describe("Plugin: escher #e2e Admin API", function()
 
             for _, method in ipairs(test_cases) do
                 it("should respond with 404 on " .. method .. " request", function()
-                    local retrieve_call = assert(helpers.admin_client():send {
+                    local retrieve_escher_key_response = send_admin_request({
                         method = method,
                         path = "/consumers/" .. consumer.id .. "/escher_key/" .. consumer.id
                     })
 
-                    local body = assert.res_status(404, retrieve_call)
-                    local json = cjson.decode(body)
-
-                    assert.are.same({ message = "Not found" }, json)
+                    assert.are.equal(404, retrieve_escher_key_response.status)
+                    assert.are.same({ message = "Not found" }, retrieve_escher_key_response.body)
                 end)
             end
         end)
@@ -182,13 +211,21 @@ describe("Plugin: escher #e2e Admin API", function()
 
         before_each(function()
             helpers.dao:truncate_tables()
-            get_response_body(TestHelper.setup_service())
 
-            consumer = get_response_body(TestHelper.setup_consumer("test2"))
+            local service = kong_sdk.services:create({
+                name = "testservice",
+                url = "http://mockbin:8080/request"
+            })
+
+            kong_sdk.routes:create_for_service(service.id, "/")
+
+            consumer = kong_sdk.consumers:create({
+                username = 'test',
+            })
         end)
 
         it("should return 412 on escher key creation", function()
-            local res = assert(helpers.admin_client():send {
+            local response = send_admin_request({
                 method = "POST",
                 path = "/consumers/" .. consumer.id .. "/escher_key/",
                 body = {
@@ -200,10 +237,8 @@ describe("Plugin: escher #e2e Admin API", function()
                 }
             })
 
-            local body = assert.res_status(412, res)
-            local json = cjson.decode(body)
-
-            assert.is_equal("Encryption key was not defined", json.message)
+            assert.are.equal(412, response.status)
+            assert.are.equal("Encryption key was not defined", response.body.message)
         end)
 
     end)
