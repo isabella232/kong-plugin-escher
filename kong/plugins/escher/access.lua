@@ -10,27 +10,31 @@ local responses = require "kong.tools.responses"
 
 local Access = {}
 
-local function set_consumer(consumer, escher_key)
+local function set_consumer(consumer)
     ngx.req.set_header(constants.HEADERS.CONSUMER_ID, consumer.id)
     ngx.req.set_header(constants.HEADERS.CONSUMER_CUSTOM_ID, consumer.custom_id)
     ngx.req.set_header(constants.HEADERS.CONSUMER_USERNAME, consumer.username)
-    ngx.ctx.authenticated_consumer = consumer
 
-    if escher_key then
-        ngx.req.set_header(constants.HEADERS.CREDENTIAL_USERNAME, escher_key.key)
-        ngx.req.set_header(constants.HEADERS.ANONYMOUS, nil)
-        ngx.ctx.authenticated_credential = escher_key
-    else
-        ngx.req.set_header(constants.HEADERS.ANONYMOUS, true)
-    end
+    ngx.ctx.authenticated_consumer = consumer
 end
 
-local function get_transformed_response(template, response_message)
-    return cjson.decode(string.format(template, response_message))
+local function set_authenticated_access(credentials)
+    ngx.req.set_header(constants.HEADERS.CREDENTIAL_USERNAME, credentials.key)
+    ngx.req.set_header(constants.HEADERS.ANONYMOUS, nil)
+
+    ngx.ctx.authenticated_credential = credentials
+end
+
+local function set_anonymous_access()
+    ngx.req.set_header(constants.HEADERS.ANONYMOUS, true)
 end
 
 local function anonymous_passthrough_is_enabled(plugin_config)
     return plugin_config.anonymous ~= nil
+end
+
+local function get_transformed_response(template, response_message)
+    return cjson.decode(string.format(template, response_message))
 end
 
 function Access.execute(conf)
@@ -40,24 +44,37 @@ function Access.execute(conf)
 
     local request = RequestElements(ngx):collect()
 
-    local escher_key, err = escher:authenticate(request)
+    local credentials, err = escher:authenticate(request)
 
-    if escher_key then
-        local consumer = ConsumerDb.find_by_id(escher_key.consumer_id)
+    if credentials then
+        Logger.getInstance(ngx):logInfo({ msg = "Escher authentication was successful.", ["x-ems-auth"] = request.headers['x-ems-auth'] })
 
-        set_consumer(consumer, escher_key)
-        Logger.getInstance(ngx):logInfo({msg = "Escher authentication was successful.", ["x-ems-auth"] = request.headers['x-ems-auth']})
-    elseif anonymous_passthrough_is_enabled(conf) then
-        local anonymous = ConsumerDb.find_by_id(conf.anonymous)
-        set_consumer(anonymous)
-        Logger.getInstance(ngx):logWarning({msg = "Escher authentication skipped.", ["x-ems-auth"] = request.headers['x-ems-auth']})
-    else
-        local status_code = conf.status_code
+        local consumer = ConsumerDb.find_by_id(credentials.consumer_id)
 
-        Logger.getInstance(ngx):logWarning({status = status_code, msg = err, ["x-ems-auth"] = request.headers['x-ems-auth']})
+        set_consumer(consumer)
 
-        return responses.send(status_code, get_transformed_response(conf.message_template, err))
+        set_authenticated_access(credentials)
+
+        return
     end
+
+    if anonymous_passthrough_is_enabled(conf) then
+        Logger.getInstance(ngx):logWarning({ msg = "Escher authentication skipped.", ["x-ems-auth"] = request.headers['x-ems-auth'] })
+
+        local anonymous = ConsumerDb.find_by_id(conf.anonymous)
+
+        set_consumer(anonymous)
+
+        set_anonymous_access()
+
+        return
+    end
+
+    local status_code = conf.status_code
+
+    Logger.getInstance(ngx):logWarning({status = status_code, msg = err, ["x-ems-auth"] = request.headers['x-ems-auth'] })
+
+    return responses.send(status_code, get_transformed_response(conf.message_template, err))
 end
 
 return Access
