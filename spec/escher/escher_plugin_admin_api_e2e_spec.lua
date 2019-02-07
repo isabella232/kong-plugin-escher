@@ -36,14 +36,13 @@ end
 
 describe("Plugin: escher #e2e Admin API", function()
 
-    local kong_sdk
+    local kong_sdk, send_admin_request
 
     setup(function()
-        helpers.start_kong({ custom_plugins = "escher" })
+        helpers.start_kong({ plugins = "escher" })
 
         kong_sdk = KongSdk.from_admin_client()
 
-        send_request = create_request_sender(helpers.proxy_client())
         send_admin_request = create_request_sender(helpers.admin_client())
     end)
 

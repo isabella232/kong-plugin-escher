@@ -26,7 +26,7 @@ describe("Plugin: escher (access) #e2e", function()
     local service
 
     setup(function()
-        helpers.start_kong({ custom_plugins = 'escher' })
+        helpers.start_kong({ plugins = 'escher' })
 
         kong_sdk = KongSdk.from_admin_client()
         send_request = create_request_sender(helpers.proxy_client())
