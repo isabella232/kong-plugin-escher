@@ -56,7 +56,7 @@ describe("Plugin: escher #e2e Admin API", function()
         local service, plugin, consumer
 
         before_each(function()
-            helpers.dao:truncate_tables()
+            helpers.db:truncate()
 
             service = kong_sdk.services:create({
                 name = "testservice",
@@ -210,7 +210,7 @@ describe("Plugin: escher #e2e Admin API", function()
         local consumer
 
         before_each(function()
-            helpers.dao:truncate_tables()
+            helpers.db:truncate()
 
             local service = kong_sdk.services:create({
                 name = "testservice",

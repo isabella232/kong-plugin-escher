@@ -41,7 +41,7 @@ describe("Plugin: escher (access) #e2e", function()
         local service, consumer
 
         before_each(function()
-            helpers.dao:truncate_tables()
+            helpers.db:truncate()
 
             service = kong_sdk.services:create({
                 name = "testservice",
@@ -200,7 +200,7 @@ describe("Plugin: escher (access) #e2e", function()
             local service, consumer
 
             before_each(function()
-                helpers.dao:truncate_tables()
+                helpers.db:truncate()
 
                 service = kong_sdk.services:create({
                     name = "testservice",
@@ -311,7 +311,7 @@ describe("Plugin: escher (access) #e2e", function()
             local service, consumer
 
             before_each(function()
-                helpers.dao:truncate_tables()
+                helpers.db:truncate()
 
                 service = kong_sdk.services:create({
                     name = "testservice",
@@ -409,7 +409,7 @@ describe("Plugin: escher (access) #e2e", function()
             local service
 
             before_each(function()
-                helpers.dao:truncate_tables()
+                helpers.db:truncate()
 
                 service = kong_sdk.services:create({
                     name = "testservice",
@@ -445,7 +445,7 @@ describe("Plugin: escher (access) #e2e", function()
             local service
 
             before_each(function()
-                helpers.dao:truncate_tables()
+                helpers.db:truncate()
 
                 service = kong_sdk.services:create({
                     name = "testservice",
