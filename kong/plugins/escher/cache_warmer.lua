@@ -3,28 +3,28 @@ local Object = require "classic"
 local singletons = require "kong.singletons"
 
 local function iterate_pages(dao)
-    local page_size = 1000
+        local page_size = 1000
 
-    local from = 1
-    local current_page = dao:find_page(nil, from, page_size)
-    local index_on_page = 1
+        local current_page, err, err_t, next_page
+        local items_on_page = 0
+        local index_on_page = 1
 
-    return function()
-        while #current_page > 0 do
-            local element = current_page[index_on_page]
+        return function()
+            if index_on_page > items_on_page and (next_page or not current_page) then
+                current_page, err, err_t, next_page = dao:find_page(nil, next_page, page_size)
 
-            if element then
-                index_on_page = index_on_page + 1
-                return element
-            else
-                from = from + page_size
-                current_page = dao:find_page(nil, from, page_size)
+                assert(current_page, err)
+
+                items_on_page = #current_page
                 index_on_page = 1
             end
-        end
 
-        return nil
-    end
+            local item = current_page[index_on_page]
+
+            index_on_page = index_on_page + 1
+
+            return item
+        end
 end
 
 local function identity(entity)
