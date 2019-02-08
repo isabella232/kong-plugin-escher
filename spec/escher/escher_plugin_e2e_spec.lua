@@ -23,8 +23,6 @@ describe("Plugin: escher (access) #e2e", function()
 
     local kong_sdk, send_request, send_admin_request
 
-    local service
-
     setup(function()
         helpers.start_kong({ plugins = 'escher' })
 
@@ -34,7 +32,7 @@ describe("Plugin: escher (access) #e2e", function()
     end)
 
     teardown(function()
-        helpers.stop_kong(nil)
+        helpers.stop_kong()
     end)
 
     describe("Plugin setup", function()
