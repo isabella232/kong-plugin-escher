@@ -1,21 +1,5 @@
-local helpers = require "spec.helpers"
-local cjson = require "cjson"
-local KongSdk = require "spec.kong_sdk"
-
-local function create_request_sender(http_client)
-    return function(request)
-        local response = assert(http_client:send(request))
-
-        local raw_body = assert(response:read_body())
-        local success, parsed_body = pcall(cjson.decode, raw_body)
-
-        return {
-            body = success and parsed_body or raw_body,
-            headers = response.headers,
-            status = response.status
-        }
-    end
-end
+local kong_helpers = require "spec.helpers"
+local test_helpers = require "kong_client.spec.test_helpers"
 
 local function get_easy_crypto()
     local EasyCrypto = require("resty.easy-crypto")
@@ -39,15 +23,14 @@ describe("Plugin: escher #e2e Admin API", function()
     local kong_sdk, send_admin_request
 
     setup(function()
-        helpers.start_kong({ plugins = "escher" })
+        kong_helpers.start_kong({ plugins = "escher" })
 
-        kong_sdk = KongSdk.from_admin_client()
-
-        send_admin_request = create_request_sender(helpers.admin_client())
+        kong_sdk = test_helpers.create_kong_client()
+        send_admin_request = test_helpers.create_request_sender(kong_helpers.admin_client())
     end)
 
     teardown(function()
-        helpers.stop_kong(nil)
+        kong_helpers.stop_kong()
     end)
 
     context("when plugin exists", function()
@@ -55,7 +38,7 @@ describe("Plugin: escher #e2e Admin API", function()
         local service, plugin, consumer
 
         before_each(function()
-            helpers.db:truncate()
+            kong_helpers.db:truncate()
 
             service = kong_sdk.services:create({
                 name = "testservice",
@@ -179,7 +162,7 @@ describe("Plugin: escher #e2e Admin API", function()
 
             assert.are.equal(201, create_escher_key_response.status)
 
-            local delete_escher_key_response = assert(helpers.admin_client():send {
+            local delete_escher_key_response = assert(kong_helpers.admin_client():send {
                 method = "DELETE",
                 path = "/consumers/" .. consumer.id .. "/escher_key/yet_another_test_key"
             })
@@ -209,7 +192,7 @@ describe("Plugin: escher #e2e Admin API", function()
         local consumer
 
         before_each(function()
-            helpers.db:truncate()
+            kong_helpers.db:truncate()
 
             local service = kong_sdk.services:create({
                 name = "testservice",

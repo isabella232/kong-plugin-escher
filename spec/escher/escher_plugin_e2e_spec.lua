@@ -1,45 +1,30 @@
-local helpers = require "spec.helpers"
-local cjson = require "cjson"
 local Escher = require "escher"
-
-local KongSdk = require "spec.kong_sdk"
-
-local function create_request_sender(http_client)
-    return function(request)
-        local response = assert(http_client:send(request))
-
-        local raw_body = assert(response:read_body())
-        local success, parsed_body = pcall(cjson.decode, raw_body)
-
-        return {
-            body = success and parsed_body or raw_body,
-            headers = response.headers,
-            status = response.status
-        }
-    end
-end
+local kong_helpers = require "spec.helpers"
+local test_helpers = require "kong_client.spec.test_helpers"
 
 describe("Plugin: escher (access) #e2e", function()
 
     local kong_sdk, send_request, send_admin_request
 
-    setup(function()
-        helpers.start_kong({ plugins = 'escher' })
+    local service
 
-        kong_sdk = KongSdk.from_admin_client()
-        send_request = create_request_sender(helpers.proxy_client())
-        send_admin_request = create_request_sender(helpers.admin_client())
+    setup(function()
+        kong_helpers.start_kong({ plugins = 'escher' })
+
+        kong_sdk = test_helpers.create_kong_client()
+        send_request = test_helpers.create_request_sender(kong_helpers.proxy_client())
+        send_admin_request = test_helpers.create_request_sender(kong_helpers.admin_client())
     end)
 
     teardown(function()
-        helpers.stop_kong()
+        kong_helpers.stop_kong()
     end)
 
     describe("Plugin setup", function()
         local service, consumer
 
         before_each(function()
-            helpers.db:truncate()
+            kong_helpers.db:truncate()
 
             service = kong_sdk.services:create({
                 name = "testservice",
@@ -198,7 +183,7 @@ describe("Plugin: escher (access) #e2e", function()
             local service, consumer
 
             before_each(function()
-                helpers.db:truncate()
+                kong_helpers.db:truncate()
 
                 service = kong_sdk.services:create({
                     name = "testservice",
@@ -309,7 +294,7 @@ describe("Plugin: escher (access) #e2e", function()
             local service, consumer
 
             before_each(function()
-                helpers.db:truncate()
+                kong_helpers.db:truncate()
 
                 service = kong_sdk.services:create({
                     name = "testservice",
@@ -407,7 +392,7 @@ describe("Plugin: escher (access) #e2e", function()
             local service
 
             before_each(function()
-                helpers.db:truncate()
+                kong_helpers.db:truncate()
 
                 service = kong_sdk.services:create({
                     name = "testservice",
@@ -443,7 +428,7 @@ describe("Plugin: escher (access) #e2e", function()
             local service
 
             before_each(function()
-                helpers.db:truncate()
+                kong_helpers.db:truncate()
 
                 service = kong_sdk.services:create({
                     name = "testservice",
