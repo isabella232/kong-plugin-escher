@@ -8,9 +8,9 @@ RUN yum update -y && \
     yum clean all && \
     rm -rf /var/cache/yum
 
-RUN luarocks install date 2.1.2-1 && \
-    luarocks install classic && \
-    luarocks install escher && \
+RUN luarocks install date 2.1.2 && \
+    luarocks install classic 0.1.0 && \
+    luarocks install escher 0.2-17 && \
     luarocks install lua-easy-crypto 1.0.0 && \
     luarocks install kong-lib-logger --deps-mode=none && \
     luarocks install kong-client 1.0.1
