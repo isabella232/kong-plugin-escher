@@ -1,4 +1,5 @@
 local Escher = require "escher"
+local base64 = require "base64"
 local kong_helpers = require "spec.helpers"
 local test_helpers = require "kong_client.spec.test_helpers"
 
@@ -453,6 +454,76 @@ describe("Plugin: escher (access) #e2e", function()
                 assert.are.equal(400, response.status)
             end)
 
+        end)
+
+        context("when Escher returns debug info", function()
+            before_each(function()
+                kong_helpers.db:truncate()
+
+                service = kong_sdk.services:create({
+                    name = "testservice",
+                    url = "http://mockbin:8080/request"
+                })
+
+                kong_sdk.routes:create_for_service(service.id, "/")
+
+                kong_sdk.plugins:create({
+                    service_id = service.id,
+                    name = "escher",
+                    config = { encryption_key_path = "/secret.txt" }
+                })
+
+                local consumer = kong_sdk.consumers:create({
+                    username = 'test'
+                })
+
+                send_admin_request({
+                    method = "POST",
+                    path = "/consumers/" .. consumer.id .. "/escher_key/",
+                    body = {
+                        key = 'test_key',
+                        secret = 'test_secret'
+                    },
+                    headers = {
+                        ["Content-Type"] = "application/json"
+                    }
+                })
+            end)
+
+            it("should append base64 encoded debug message if x-ems-debug is present", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/request",
+                    headers = {
+                        ["X-Ems-Debug"] = "",
+                        ["X-Ems-Date"] = current_date,
+                        ["Host"] = "test1.com",
+                        ["X-Ems-Auth"] = ems_auth_header .. "b"
+                    }
+                })
+
+                assert.are.equal(401, response.status)
+
+                local encoded_message = response.body.message:match("The signatures do not match %(Base64 encoded debug message: '(.-)'%)")
+                local debug_message = encoded_message and base64.decode(encoded_message) or nil
+
+                assert.are.equal("string", type(debug_message))
+            end)
+
+            it("should not append debug message if x-ems-debug is missing", function()
+                local response = send_request({
+                    method = "GET",
+                    path = "/request",
+                    headers = {
+                        ["X-Ems-Date"] = current_date,
+                        ["Host"] = "test1.com",
+                        ["X-Ems-Auth"] = ems_auth_header .. "b"
+                    }
+                })
+
+                assert.are.equal(401, response.status)
+                assert.are.equal("The signatures do not match", response.body.message)
+            end)
         end)
 
     end)

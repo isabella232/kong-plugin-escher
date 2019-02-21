@@ -1,5 +1,6 @@
 local Object = require "classic"
 local date = require "date"
+local base64 = require "base64"
 local EscherFactory = require "kong.plugins.escher.escher_factory"
 
 local EscherWrapper = Object:extend()
@@ -47,9 +48,13 @@ function EscherWrapper:authenticate(request)
         ["body"] = request.body
     }
 
-    local api_key, err = escher:authenticate(transformed_request, key_retriever(self.key_db), mandatory_headers_to_sign)
+    local api_key, err, debug_info = escher:authenticate(transformed_request, key_retriever(self.key_db), mandatory_headers_to_sign)
 
     if not api_key then
+        if request_headers['x-ems-debug'] and debug_info then
+            err = err .. " (Base64 encoded debug message: '" .. base64.encode(debug_info) .. "')"
+        end
+
         return nil, err
     else
         return self.key_db:find_by_key(api_key)
