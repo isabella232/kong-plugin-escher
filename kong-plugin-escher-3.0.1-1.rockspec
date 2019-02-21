@@ -14,7 +14,7 @@ dependencies = {
   "lua >= 5.1",
   "date 2.1.2-1",
   "classic 0.1.0-1",
-  "escher 0.2-17",
+  "escher 0.4.0-1",
   "kong-lib-logger >= 0.3.0-1",
   "lua-easy-crypto 1.0.0"
 }
