@@ -10,6 +10,22 @@ local responses = require "kong.tools.responses"
 
 local Access = {}
 
+local function get_headers_to_sign(conf, headers)
+    if conf.strict_header_signing then
+        return conf.headers_to_sign
+    end
+
+    local headers_to_sign = {}
+
+    for _, header_name in pairs(conf.headers_to_sign) do
+        if headers[header_name] then
+            table.insert(headers_to_sign, header_name)
+        end
+    end
+
+    return headers_to_sign
+end
+
 local function set_consumer(consumer)
     ngx.req.set_header(constants.HEADERS.CONSUMER_ID, consumer.id)
     ngx.req.set_header(constants.HEADERS.CONSUMER_CUSTOM_ID, consumer.custom_id)
@@ -44,7 +60,7 @@ function Access.execute(conf)
 
     local request = RequestElements(ngx):collect()
 
-    local credentials, err = escher:authenticate(request)
+    local credentials, err = escher:authenticate(request, get_headers_to_sign(conf, request.headers))
 
     if credentials then
         Logger.getInstance(ngx):logInfo({ msg = "Escher authentication was successful.", ["x-ems-auth"] = request.headers['x-ems-auth'] })

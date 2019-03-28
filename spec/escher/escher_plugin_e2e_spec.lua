@@ -7,8 +7,6 @@ describe("Plugin: escher (access) #e2e", function()
 
     local kong_sdk, send_request, send_admin_request
 
-    local service
-
     setup(function()
         kong_helpers.start_kong({ plugins = 'escher' })
 
@@ -304,7 +302,7 @@ describe("Plugin: escher (access) #e2e", function()
 
                 kong_sdk.routes:create_for_service(service.id, "/")
 
-                anonymous = kong_sdk.consumers:create({
+                local anonymous = kong_sdk.consumers:create({
                     username = 'anonymous',
                 })
 
@@ -420,6 +418,147 @@ describe("Plugin: escher (access) #e2e", function()
                 assert.is_nil(response.body.message)
                 assert.not_nil(response.body['custom-message'])
                 assert.are.equal("The x-ems-date header is missing", response.body['custom-message'])
+            end)
+
+        end)
+
+        context("when given headers to sign", function()
+
+            local service
+
+            before_each(function()
+                kong_helpers.db:truncate()
+
+                service = kong_sdk.services:create({
+                    url = "http://mockbin:8080/request"
+                })
+
+                kong_sdk.routes:create_for_service(service.id, "/")
+
+                local consumer = kong_sdk.consumers:create({
+                    username = "test"
+                })
+
+                send_admin_request({
+                    method = "POST",
+                    path = "/consumers/" .. consumer.id .. "/escher_key/",
+                    body = {
+                        key = "test_key",
+                        secret = "test_secret"
+                    },
+                    headers = {
+                        ["Content-Type"] = "application/json"
+                    }
+                })
+            end)
+
+            local function headers_to_array(key_value_headers)
+                local headers = {}
+
+                for key, value in pairs(key_value_headers) do
+                    table.insert(headers, {key, value})
+                end
+
+                return headers
+            end
+
+            local function sign_request(request)
+                request.headers["X-Ems-Date"] = current_date
+                request.headers["X-Ems-Auth"] = escher:generateHeader({
+                    method = request.method,
+                    url = request.path,
+                    headers = headers_to_array(request.headers)
+                }, request.additional_headers_to_sign)
+
+                return request
+            end
+
+            context("and strict header signing is off", function()
+
+                before_each(function()
+                    kong_sdk.plugins:create({
+                        service_id = service.id,
+                        name = "escher",
+                        config = {
+                            encryption_key_path = "/secret.txt",
+                            headers_to_sign = { "X-Suite-CustomerId" },
+                            strict_header_signing = false
+                        }
+                    })
+                end)
+
+                it("should allow request when header is signed", function()
+                    local response = send_request(sign_request({
+                        method = "GET",
+                        path = "/request",
+                        additional_headers_to_sign = { "X-Suite-CustomerId" },
+                        headers = {
+                            ["Host"] = "test1.com",
+                            ["X-Suite-CustomerId"] = "12345678"
+                        }
+                    }))
+
+                    assert.are.equal(200, response.status)
+                end)
+
+                it("should reject request when header is not signed", function()
+                    local response = send_request(sign_request({
+                        method = "GET",
+                        path = "/request",
+                        additional_headers_to_sign = {},
+                        headers = {
+                            ["Host"] = "test1.com",
+                            ["X-Suite-CustomerId"] = "12345678"
+                        }
+                    }))
+
+                    assert.are.equal(401, response.status)
+                    assert.are.equal("The X-Suite-CustomerId header is not signed", response.body.message)
+                end)
+
+                it("should allow request when header is not present", function()
+                    local response = send_request(sign_request({
+                        method = "GET",
+                        path = "/request",
+                        additional_headers_to_sign = {},
+                        headers = {
+                            ["Host"] = "test1.com"
+                        }
+                    }))
+
+                    assert.are.equal(200, response.status)
+                end)
+
+            end)
+
+            context("and strict header signing is on", function()
+
+                before_each(function()
+                    kong_sdk.plugins:create({
+                        service_id = service.id,
+                        name = "escher",
+                        config = {
+                            encryption_key_path = "/secret.txt",
+                            headers_to_sign = { "X-Suite-CustomerId" },
+                            strict_header_signing = true
+                        }
+                    })
+                end)
+
+                it("should reject request when header is not present", function()
+                    local response = send_request(sign_request({
+                        method = "GET",
+                        path = "/request",
+                        additional_headers_to_sign = {},
+                        headers = {
+                            ["Host"] = "test1.com"
+                        }
+                    }))
+
+                    assert.are.equal(401, response.status)
+                    assert.are.equal("The X-Suite-CustomerId header is not signed", response.body.message)
+                end)
+
             end)
 
         end)

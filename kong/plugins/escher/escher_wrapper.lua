@@ -7,15 +7,12 @@ local EscherWrapper = Object:extend()
 
 local function parse_headers(ngx_headers)
     local headers = {}
-    local mandatoryHeadersToSign = {}
+
     for key, value in pairs(ngx_headers) do
         table.insert(headers, {key, value})
-        if key == 'x-suite-customerid' then
-            table.insert(mandatoryHeadersToSign, key)
-        end
     end
 
-    return headers, mandatoryHeadersToSign
+    return headers
 end
 
 local function key_retriever(key_db)
@@ -28,9 +25,8 @@ function EscherWrapper:new(key_db)
     self.key_db = key_db
 end
 
-function EscherWrapper:authenticate(request)
+function EscherWrapper:authenticate(request, mandatory_headers_to_sign)
     local escher = EscherFactory.create()
-
     local request_headers = request.headers
     local date_as_string = request_headers['x-ems-date']
     local success = pcall(date, date_as_string)
@@ -39,7 +35,7 @@ function EscherWrapper:authenticate(request)
         return nil, "Could not parse X-Ems-Date header"
     end
 
-    local headers_as_array, mandatory_headers_to_sign = parse_headers(request_headers)
+    local headers_as_array = parse_headers(request_headers)
 
     local transformed_request = {
         ["method"] = request.method,

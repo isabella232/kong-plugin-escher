@@ -119,7 +119,7 @@ describe("escher wrapper", function()
             local mandatory_headers_to_sign = {}
 
             spy.on(Escher, "authenticate")
-            escher_wrapper:authenticate(request)
+            escher_wrapper:authenticate(request, mandatory_headers_to_sign)
 
             assert.spy(Escher.authenticate).was.called_with(match._, expected_request, match.is_function(), mandatory_headers_to_sign)
         end)

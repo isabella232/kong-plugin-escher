@@ -30,6 +30,8 @@ describe("PluginConfig", function()
             local schema = require "kong.plugins.escher.schema"
 
             assert.are.same({
+                headers_to_sign = {},
+                strict_header_signing = false,
                 message_template = '{"message": "%s"}',
                 status_code = 401
             }, PluginConfig(schema):merge_onto_defaults({}))
