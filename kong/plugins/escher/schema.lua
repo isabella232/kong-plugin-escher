@@ -66,8 +66,8 @@ return {
     fields = {
         anonymous = { type = "string", default = nil, func = ensure_valid_uuid_or_nil },
         encryption_key_path = { type = "string", required = true, func = ensure_file_exists },
-        headers_to_sign = { type = "array", default = {} },
-        strict_header_signing = { type = "boolean", default = false },
+        additional_headers_to_sign = { type = "array", default = {} },
+        require_additional_headers_to_be_signed = { type = "boolean", default = false },
         message_template = { type = "string", default = '{"message": "%s"}', func = ensure_message_template_is_valid_json },
         status_code = { type = "number", default = 401, func = validate_http_status_code }
     },

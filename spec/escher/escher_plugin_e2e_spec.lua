@@ -481,8 +481,8 @@ describe("Plugin: escher (access) #e2e", function()
                         name = "escher",
                         config = {
                             encryption_key_path = "/secret.txt",
-                            headers_to_sign = { "X-Suite-CustomerId" },
-                            strict_header_signing = false
+                            additional_headers_to_sign = { "X-Suite-CustomerId" },
+                            require_additional_headers_to_be_signed = false
                         }
                     })
                 end)
@@ -539,8 +539,8 @@ describe("Plugin: escher (access) #e2e", function()
                         name = "escher",
                         config = {
                             encryption_key_path = "/secret.txt",
-                            headers_to_sign = { "X-Suite-CustomerId" },
-                            strict_header_signing = true
+                            additional_headers_to_sign = { "X-Suite-CustomerId" },
+                            require_additional_headers_to_be_signed = true
                         }
                     })
                 end)

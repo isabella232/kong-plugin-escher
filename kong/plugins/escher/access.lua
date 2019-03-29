@@ -11,13 +11,13 @@ local responses = require "kong.tools.responses"
 local Access = {}
 
 local function get_headers_to_sign(conf, headers)
-    if conf.strict_header_signing then
-        return conf.headers_to_sign
+    if conf.require_additional_headers_to_be_signed then
+        return conf.additional_headers_to_sign
     end
 
     local headers_to_sign = {}
 
-    for _, header_name in pairs(conf.headers_to_sign) do
+    for _, header_name in pairs(conf.additional_headers_to_sign) do
         if headers[header_name] then
             table.insert(headers_to_sign, header_name)
         end
