@@ -41,7 +41,8 @@ function EscherHandler:access(original_config)
 
     if not success then
         Logger.getInstance(ngx):logError(result)
-        return responses.send(500, "An unexpected error occurred.")
+
+        return kong.response.exit(500, { message = "An unexpected error occurred." })
     end
 
     return result

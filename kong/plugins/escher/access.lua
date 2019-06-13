@@ -92,7 +92,7 @@ function Access.execute(conf)
 
     Logger.getInstance(ngx):logWarning({status = status_code, msg = err, ["x-ems-auth"] = request.headers["x-ems-auth"] })
 
-    return responses.send(status_code, get_transformed_response(conf.message_template, err))
+    return kong.response.exit(status_code, get_transformed_response(conf.message_template, err))
 end
 
 return Access
