@@ -8,7 +8,7 @@ describe("Plugin: escher (access) #e2e", function()
     local kong_sdk, send_request, send_admin_request
 
     setup(function()
-        kong_helpers.start_kong({ plugins = 'escher' })
+        kong_helpers.start_kong({ plugins = "escher" })
 
         kong_sdk = test_helpers.create_kong_client()
         send_request = test_helpers.create_request_sender(kong_helpers.proxy_client())
@@ -33,7 +33,7 @@ describe("Plugin: escher (access) #e2e", function()
             kong_sdk.routes:create_for_service(service.id, "/")
 
             consumer = kong_sdk.consumers:create({
-                username = 'test',
+                username = "test",
             })
         end)
 
@@ -140,24 +140,24 @@ describe("Plugin: escher (access) #e2e", function()
         local current_date = os.date("!%Y%m%dT%H%M%SZ")
 
         local config = {
-            algoPrefix      = 'EMS',
-            vendorKey       = 'EMS',
-            credentialScope = 'eu/suite/ems_request',
-            authHeaderName  = 'X-Ems-Auth',
-            dateHeaderName  = 'X-Ems-Date',
-            accessKeyId     = 'test_key',
-            apiSecret       = 'test_secret',
+            algoPrefix      = "EMS",
+            vendorKey       = "EMS",
+            credentialScope = "eu/suite/ems_request",
+            authHeaderName  = "X-Ems-Auth",
+            dateHeaderName  = "X-Ems-Date",
+            accessKeyId     = "test_key",
+            apiSecret       = "test_secret",
             date            = current_date,
         }
 
         local config_wrong_api_key = {
-            algoPrefix      = 'EMS',
-            vendorKey       = 'EMS',
-            credentialScope = 'eu/suite/ems_request',
-            authHeaderName  = 'X-Ems-Auth',
-            dateHeaderName  = 'X-Ems-Date',
-            accessKeyId     = 'wrong_key',
-            apiSecret       = 'test_secret',
+            algoPrefix      = "EMS",
+            vendorKey       = "EMS",
+            credentialScope = "eu/suite/ems_request",
+            authHeaderName  = "X-Ems-Auth",
+            dateHeaderName  = "X-Ems-Date",
+            accessKeyId     = "wrong_key",
+            apiSecret       = "test_secret",
             date            = current_date,
         }
 
@@ -198,7 +198,8 @@ describe("Plugin: escher (access) #e2e", function()
                 })
 
                 consumer = kong_sdk.consumers:create({
-                    username = 'test',
+                    username = "test",
+                    custom_id = "Test"
                 })
             end)
 
@@ -223,7 +224,7 @@ describe("Plugin: escher (access) #e2e", function()
                     headers = {
                         ["X-EMS-DATE"] = current_date,
                         ["Host"] = "test1.com",
-                        ["X-EMS-AUTH"] = 'invalid header'
+                        ["X-EMS-AUTH"] = "invalid header"
                     }
                 })
 
@@ -236,9 +237,9 @@ describe("Plugin: escher (access) #e2e", function()
                     method = "GET",
                     path = "/request",
                     headers = {
-                        ["X-EMS-DATE"] = 'invalid date',
+                        ["X-EMS-DATE"] = "invalid date",
                         ["Host"] = "test1.com",
-                        ["X-EMS-AUTH"] = 'invalid header'
+                        ["X-EMS-AUTH"] = "invalid header"
                     }
                 })
 
@@ -251,8 +252,8 @@ describe("Plugin: escher (access) #e2e", function()
                     method = "POST",
                     path = "/consumers/" .. consumer.id .. "/escher_key/",
                     body = {
-                        key = 'test_key',
-                        secret = 'test_secret'
+                        key = "test_key",
+                        secret = "test_secret"
                     },
                     headers = {
                         ["Content-Type"] = "application/json"
@@ -303,7 +304,7 @@ describe("Plugin: escher (access) #e2e", function()
                 kong_sdk.routes:create_for_service(service.id, "/")
 
                 local anonymous = kong_sdk.consumers:create({
-                    username = 'anonymous',
+                    username = "anonymous",
                 })
 
                 kong_sdk.plugins:create({
@@ -313,7 +314,7 @@ describe("Plugin: escher (access) #e2e", function()
                 })
 
                 consumer = kong_sdk.consumers:create({
-                    username = 'TestUser',
+                    username = "TestUser",
                 })
             end)
 
@@ -336,7 +337,7 @@ describe("Plugin: escher (access) #e2e", function()
                     headers = {
                         ["X-EMS-DATE"] = current_date,
                         ["Host"] = "test1.com",
-                        ["X-EMS-AUTH"] = 'invalid header'
+                        ["X-EMS-AUTH"] = "invalid header"
                     }
                 })
 
@@ -349,8 +350,8 @@ describe("Plugin: escher (access) #e2e", function()
                     method = "POST",
                     path = "/consumers/" .. consumer.id .. "/escher_key/",
                     body = {
-                        key = 'test_key',
-                        secret = 'test_secret'
+                        key = "test_key",
+                        secret = "test_secret"
                     },
                     headers = {
                         ["Content-Type"] = "application/json"
@@ -416,8 +417,8 @@ describe("Plugin: escher (access) #e2e", function()
                 assert.are.equal(401, response.status)
 
                 assert.is_nil(response.body.message)
-                assert.not_nil(response.body['custom-message'])
-                assert.are.equal("The x-ems-date header is missing", response.body['custom-message'])
+                assert.not_nil(response.body["custom-message"])
+                assert.are.equal("The x-ems-date header is missing", response.body["custom-message"])
             end)
 
         end)
@@ -563,7 +564,7 @@ describe("Plugin: escher (access) #e2e", function()
 
         end)
 
-        context('when given status code for failed authentications', function()
+        context("when given status code for failed authentications", function()
 
             local service
 
@@ -613,15 +614,15 @@ describe("Plugin: escher (access) #e2e", function()
                 })
 
                 local consumer = kong_sdk.consumers:create({
-                    username = 'test'
+                    username = "test"
                 })
 
                 send_admin_request({
                     method = "POST",
                     path = "/consumers/" .. consumer.id .. "/escher_key/",
                     body = {
-                        key = 'test_key',
-                        secret = 'test_secret'
+                        key = "test_key",
+                        secret = "test_secret"
                     },
                     headers = {
                         ["Content-Type"] = "application/json"
