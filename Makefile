@@ -25,17 +25,16 @@ publish: ## Build and publish plugin to luarocks
 	docker-compose run kong bash -c "cd /kong-plugins && chmod +x publish.sh && ./publish.sh"
 
 test: ## Run tests
-	docker-compose run kong bash -c "cd /kong && bin/kong migrations up && bin/busted /kong-plugins/spec"
+	docker-compose run --rm kong bash -c "cd /kong && bin/kong migrations up && bin/busted /kong-plugins/spec"
 	docker-compose down
 
 unit: ## Run unit tests
-	docker-compose run kong bash -c "cd /kong && bin/kong migrations up && bin/busted --exclude-tags='e2e' /kong-plugins/spec"
+	docker-compose run --rm kong bash -c "cd /kong && bin/kong migrations up && bin/busted --exclude-tags='e2e' /kong-plugins/spec"
 	docker-compose down
 
 e2e: ## Run end to end tests
-	docker-compose run kong bash -c "cd /kong && bin/kong migrations up && bin/busted -t 'e2e' /kong-plugins/spec"
+	docker-compose run --rm kong bash -c "cd /kong && bin/kong migrations up && bin/busted -t 'e2e' /kong-plugins/spec"
 	docker-compose down
-
 
 dev-env: ## Creates API (testapi) and consumer (TestUser)
 	bash -c "curl -i -X POST --url http://localhost:8001/services/ --data 'name=testapi' --data 'url=http://mockbin.org/request'"
@@ -48,7 +47,7 @@ ping: ## Pings kong on localhost:8000
 	bash -c "curl -i http://localhost:8000"
 
 ssh: ## Pings kong on localhost:8000
-	docker-compose run kong bash
+	docker-compose run --rm kong bash
 
 db: ## Access DB
-	docker-compose run kong bash -c "psql -h kong-database -U kong"
+	docker-compose run --rm kong bash -c "psql -h kong-database -U kong"
