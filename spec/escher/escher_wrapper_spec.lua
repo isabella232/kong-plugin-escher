@@ -11,19 +11,19 @@ describe("escher wrapper", function()
 
     before_each(function()
         KeyDb.find_secret_by_key = function(self, key_name)
-            if key_name == 'test_key' then
+            if key_name == "test_key" then
                 return "test_secret"
             end
         end
 
         test_escher_key = {
-            key = 'test_key',
-            secret = 'test_secret',
-            consumer_id = '0001-1234'
+            key = "test_key",
+            secret = "test_secret",
+            consumer_id = "0001-1234"
         }
 
         KeyDb.find_by_key = function(self, key_name)
-            if key_name == 'test_key' then
+            if key_name == "test_key" then
                 return test_escher_key
             end
         end
@@ -35,13 +35,13 @@ describe("escher wrapper", function()
         current_date = os.date("!%Y%m%dT%H%M%SZ")
 
         local config = {
-            algoPrefix      = 'EMS',
-            vendorKey       = 'EMS',
-            credentialScope = 'eu/suite/ems_request',
-            authHeaderName  = 'X-Ems-Auth',
-            dateHeaderName  = 'X-Ems-Date',
-            accessKeyId     = 'test_key',
-            apiSecret       = 'test_secret',
+            algoPrefix      = "EMS",
+            vendorKey       = "EMS",
+            credentialScope = "eu/suite/ems_request",
+            authHeaderName  = "X-Ems-Auth",
+            dateHeaderName  = "X-Ems-Date",
+            accessKeyId     = "test_key",
+            apiSecret       = "test_secret",
             date            = current_date,
         }
 
@@ -53,7 +53,7 @@ describe("escher wrapper", function()
         local request = {
             ["method"] = "GET",
             ["headers"] = request_headers,
-            ["body"] = '',
+            ["body"] = "",
             ["url"] = "request_uri"
         }
 
@@ -68,7 +68,7 @@ describe("escher wrapper", function()
             local request = {
                 ["method"] = "GET",
                 ["headers"] = {},
-                ["body"] = '',
+                ["body"] = "",
                 ["url"] = "request_uri"
             }
 
@@ -79,7 +79,7 @@ describe("escher wrapper", function()
             local request = {
                 ["method"] = "GET",
                 ["headers"] = {},
-                ["body"] = '',
+                ["body"] = "",
                 ["url"] = "request_uri"
             }
 
@@ -93,7 +93,7 @@ describe("escher wrapper", function()
             local headers = {
                 ["x-ems-auth"] = ems_auth_header,
                 ["x-ems-date"] = current_date,
-                ["host"] = '',
+                ["host"] = "",
             }
 
             local expected_request_headers = {
@@ -105,14 +105,14 @@ describe("escher wrapper", function()
             local expected_request = {
                 ["method"] = "GET",
                 ["headers"] = expected_request_headers,
-                ["body"] = '',
+                ["body"] = "",
                 ["url"] = "request_uri"
             }
 
             local request = {
                 ["method"] = "GET",
                 ["headers"] = headers,
-                ["body"] = '',
+                ["body"] = "",
                 ["url"] = "request_uri"
             }
 
@@ -128,13 +128,13 @@ describe("escher wrapper", function()
             local headers = {
                 ["X-Ems-Date"] = current_date,
                 ["X-Ems-Auth"] = ems_auth_header,
-                ["Host"] = '',
+                ["Host"] = "",
             }
 
             local request = {
                 ["method"] = "GET",
                 ["headers"] = headers,
-                ["body"] = '',
+                ["body"] = "",
                 ["url"] = "request_uri"
             }
 

@@ -1,4 +1,4 @@
-local CacheWarmer = require 'kong.plugins.escher.cache_warmer'
+local CacheWarmer = require "kong.plugins.escher.cache_warmer"
 
 local singletons = require "kong.singletons"
 

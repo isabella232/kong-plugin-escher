@@ -28,7 +28,7 @@ end
 function EscherWrapper:authenticate(request, mandatory_headers_to_sign)
     local escher = EscherFactory.create()
     local request_headers = request.headers
-    local date_as_string = request_headers['x-ems-date']
+    local date_as_string = request_headers["x-ems-date"]
     local success = pcall(date, date_as_string)
 
     if date_as_string and not success then
@@ -47,7 +47,7 @@ function EscherWrapper:authenticate(request, mandatory_headers_to_sign)
     local api_key, err, debug_info = escher:authenticate(transformed_request, key_retriever(self.key_db), mandatory_headers_to_sign)
 
     if not api_key then
-        if request_headers['x-ems-debug'] and debug_info then
+        if request_headers["x-ems-debug"] and debug_info then
             err = err .. " (Base64 encoded debug message: '" .. base64.encode(debug_info) .. "')"
         end
 

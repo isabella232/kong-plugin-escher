@@ -54,7 +54,7 @@ describe("Plugin: escher #e2e Admin API", function()
             })
 
             consumer = kong_sdk.consumers:create({
-                username = 'test',
+                username = "test",
             })
         end)
 
@@ -202,7 +202,7 @@ describe("Plugin: escher #e2e Admin API", function()
             kong_sdk.routes:create_for_service(service.id, "/")
 
             consumer = kong_sdk.consumers:create({
-                username = 'test',
+                username = "test",
             })
         end)
 

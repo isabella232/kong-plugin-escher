@@ -40,7 +40,7 @@ end
 local function is_object(message_template)
     local first_char = message_template:sub(1, 1)
     local last_char = message_template:sub(-1)
-    return first_char == '{' and last_char == '}'
+    return first_char == "{" and last_char == "}"
 end
 
 local function ensure_message_template_is_valid_json(message_template)
