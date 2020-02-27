@@ -6,7 +6,6 @@ local EscherWrapper = require "kong.plugins.escher.escher_wrapper"
 local RequestElements = require "kong.plugins.escher.request_elements"
 local KeyDb = require "kong.plugins.escher.key_db"
 local Logger = require "logger"
-local responses = require "kong.tools.responses"
 
 local Access = {}
 

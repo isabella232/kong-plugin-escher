@@ -1,7 +1,5 @@
 local CacheWarmer = require "kong.plugins.escher.cache_warmer"
 
-local singletons = require "kong.singletons"
-
 local function retrieve_id_from_consumer(consumer)
     return { consumer.id }
 end
@@ -17,8 +15,8 @@ local InitWorker = {}
 InitWorker.execute = function()
     local cache_warmer = CacheWarmer(ONE_DAY_IN_SECONDS)
 
-    cache_warmer:cache_all_entities(singletons.dao.consumers, retrieve_id_from_consumer)
-    cache_warmer:cache_all_entities(singletons.dao.escher_keys, retrieve_escher_key_name)
+    cache_warmer:cache_all_entities(kong.db.consumers, retrieve_id_from_consumer)
+    cache_warmer:cache_all_entities(kong.db.escher_keys, retrieve_escher_key_name)
 end
 
 return InitWorker

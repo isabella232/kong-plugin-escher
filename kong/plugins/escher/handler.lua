@@ -1,6 +1,5 @@
 local Access = require "kong.plugins.escher.access"
 local BasePlugin = require "kong.plugins.base_plugin"
-local responses = require "kong.tools.responses"
 local InitWorker = require "kong.plugins.escher.init_worker"
 local Logger = require "logger"
 local PluginConfig = require "kong.plugins.escher.plugin_config"

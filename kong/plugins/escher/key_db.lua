@@ -1,17 +1,15 @@
 local Logger = require "logger"
 local Object = require "classic"
-local singletons = require "kong.singletons"
 
 local KeyDb = Object:extend()
 
 local function load_credential(key)
-    local credential, err = singletons.dao.escher_keys:find_all({["key"] = key})
-
+    local escher_keys, err = kong.db.connector:query(string.format("SELECT * FROM escher_keys WHERE key = '%s'", key))
     if err then
         return nil, err
     end
 
-    return credential[1]
+    return escher_keys[1]
 end
 
 function KeyDb:new(crypto)
@@ -29,8 +27,8 @@ function KeyDb:find_secret_by_key(key)
 end
 
 function KeyDb:find_by_key(key)
-    local escher_cache_key = singletons.dao.escher_keys:cache_key(key)
-    local escher_key, err = singletons.cache:get(escher_cache_key, nil, load_credential, key)
+    local cache_key = kong.db.escher_keys:cache_key(key)
+    local escher_key, err = kong.cache:get(cache_key, nil, load_credential, key)
 
     if err then
       Logger.getInstance(ngx):logError(err)

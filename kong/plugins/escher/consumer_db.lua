@@ -1,11 +1,10 @@
-local singletons = require "kong.singletons"
 local Logger = require "logger"
 local Object = require("classic")
 
 local ConsumerDb = Object:extend()
 
 local function load_consumer(consumer_id)
-    local consumer, err = singletons.dao.consumers:find { id = consumer_id }
+    local consumer, err = kong.db.consumers:select({ id = consumer_id })
 
     return consumer, err
 end
@@ -16,8 +15,8 @@ function ConsumerDb.find_by_id(consumer_id)
         error({ msg = "Consumer id is required." })
     end
 
-    local consumer_cache_key = singletons.dao.consumers:cache_key(consumer_id)
-    local consumer, err = singletons.cache:get(consumer_cache_key, nil, load_consumer, consumer_id)
+    local cache_key = kong.db.consumers:cache_key(consumer_id)
+    local consumer, err = kong.cache:get(cache_key, nil, load_consumer, consumer_id)
 
     if err then
         Logger.getInstance(ngx):logError(err)

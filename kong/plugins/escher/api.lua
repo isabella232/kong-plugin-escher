@@ -1,62 +1,61 @@
-local crud = require "kong.api.crud_helpers"
+local endpoints = require "kong.api.endpoints"
 local Crypt = require "kong.plugins.escher.crypt"
 local EncryptionKeyPathRetriever =  require "kong.plugins.escher.encryption_key_path_retriever"
 
+local escher_keys_schema = kong.db.escher_keys.schema
+local consumers_schema = kong.db.consumers.schema
+
 return {
-    ["/consumers/:username_or_id/escher_key/"] = {
-        before = function(self, dao_factory, helpers)
-            crud.find_consumer_by_username_or_id(self, dao_factory, helpers)
-            self.params.consumer_id = self.consumer.id
-        end,
+    ["/consumers/:consumers/escher_key"] = {
+        schema = escher_keys_schema,
+        methods = {
+            POST = function(self, db, helpers)
+                if self.args.post.secret then
+                    local path = EncryptionKeyPathRetriever(db):find_key_path()
+                    if not path then
+                        return kong.response.exit(412, {
+                            message = "Encryption key was not defined"
+                        })
+                    end
+                    local crypt = Crypt(path)
+                    local encrypted_secret = crypt:encrypt(self.args.post.secret)
+                    self.args.post.secret = encrypted_secret
+                end
+                return endpoints.post_collection_endpoint(escher_keys_schema, consumers_schema, "consumer")(self, db, helpers)
+            end,
+        }
+    },
+    ["/consumers/:consumers/escher_key/:escher_keys"] = {
+        schema = escher_keys_schema,
+        methods = {
+            before = function(self, db, helpers)
+                local consumer, _, err_t = endpoints.select_entity(self, db, consumers_schema)
+                if err_t then
+                  return endpoints.handle_error(err_t)
+                end
+                if not consumer then
+                  return kong.response.exit(404, { message = "Not found" })
+                end
+                self.consumer = consumer
 
-        POST = function(self, dao_factory, helpers)
-            local path = EncryptionKeyPathRetriever(dao_factory.plugins):find_key_path()
+                local cred, _, err_t = endpoints.select_entity(self, db, escher_keys_schema)
+                if err_t then
+                  return endpoints.handle_error(err_t)
+                end
 
-            if not path then
-                return helpers.responses.send(412, {
-                    message = "Encryption key was not defined"
+                if not cred or cred.consumer.id ~= consumer.id then
+                  return kong.response.exit(404, { message = "Not found" })
+                end
+                self.escher_key = cred
+            end,
+            DELETE = endpoints.delete_entity_endpoint(escher_keys_schema),
+            GET = function(self, db, helpers)
+                return kong.response.exit(200, {
+                    id = self.escher_key.id,
+                    consumer_id = self.escher_key.consumer.id,
+                    key = self.escher_key.key
                 })
             end
-
-            local crypt = Crypt(path)
-            local encrypted_secret = crypt:encrypt(self.params.secret)
-
-            self.params.secret = encrypted_secret
-
-            crud.post(self.params, dao_factory.escher_keys)
-        end
-    },
-
-    ["/consumers/:username_or_id/escher_key/:escher_key_name_or_id"] = {
-        before = function(self, dao_factory, helpers)
-            crud.find_consumer_by_username_or_id(self, dao_factory, helpers)
-
-            local credentials, err = crud.find_by_id_or_field(
-                dao_factory.escher_keys,
-                { consumer_id = self.consumer.id },
-                ngx.unescape_uri(self.params.escher_key_name_or_id),
-                "key"
-            )
-
-            if err then
-                return helpers.yield_error(err)
-            elseif #credentials == 0 then
-                return helpers.responses.send_HTTP_NOT_FOUND()
-            end
-
-            self.escher_key = credentials[1]
-        end,
-
-        GET = function(self, dao_factory, helpers)
-            return helpers.responses.send_HTTP_OK({
-                id = self.escher_key.id,
-                consumer_id = self.escher_key.consumer_id,
-                key = self.escher_key.key
-            })
-        end,
-
-        DELETE = function(self, dao_factory, helpers)
-            crud.delete(self.escher_key, dao_factory.escher_keys)
-        end
+        }
     }
 }

@@ -3,7 +3,7 @@ local base64 = require "base64"
 local kong_helpers = require "spec.helpers"
 local test_helpers = require "kong_client.spec.test_helpers"
 
-describe("Plugin: escher (access) #e2e", function()
+describe("Escher plugin #e2e", function()
 
     local kong_sdk, send_request, send_admin_request
 
@@ -19,8 +19,8 @@ describe("Plugin: escher (access) #e2e", function()
         kong_helpers.stop_kong()
     end)
 
-    describe("Plugin setup", function()
-        local service, consumer
+    describe("#schema", function()
+        local service
 
         before_each(function()
             kong_helpers.db:truncate()
@@ -29,113 +29,163 @@ describe("Plugin: escher (access) #e2e", function()
                 name = "testservice",
                 url = "http://mockbin:8080/request"
             })
-
-            kong_sdk.routes:create_for_service(service.id, "/")
-
-            consumer = kong_sdk.consumers:create({
-                username = "test",
-            })
         end)
 
-        context("when using a wrong config", function()
-            it("should respond 400 when required config values not provided", function()
+        it("should respond with error when required config values are not provided", function()
+            local _, response = pcall(function()
+                kong_sdk.plugins:create({
+                    service = { id = service.id },
+                    name = "escher",
+                    config = {}
+                })
+            end)
 
-                local success, response = pcall(function()
+            assert.is_equal("required field missing", response.body.fields.config.encryption_key_path)
+        end)
+
+        it("should use dafaults when config values are not provided", function()
+            local plugin = kong_sdk.plugins:create({
+                service = { id = service.id },
+                name = "escher",
+                config = { encryption_key_path = "/secret.txt" }
+            })
+
+            assert.is_equal('{"message": "%s"}', plugin.config.message_template)
+            assert.is_equal(401, plugin.config.status_code)
+            assert.are.same({}, plugin.config.additional_headers_to_sign)
+            assert.is_equal(false, plugin.config.require_additional_headers_to_be_signed)
+        end)
+
+        context("when anonymous field is set", function()
+            it("should throw error when anonymous is not a valid uuid", function()
+                local _, response = pcall(function()
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "escher",
-                        config = {}
+                        config = {
+                            encryption_key_path = "/secret.txt",
+                            anonymous = "not-a-valid-uuid"
+                        }
                     })
                 end)
 
-                assert.are.equal("encryption_key_path is required", response.body["config.encryption_key_path"])
+                assert.is_equal(400, response.status)
+                assert.is_equal("Anonymous must a valid uuid if specified", response.body.fields.config.anonymous)
             end)
+        end)
 
+        context("when encryption_key_path field is set", function()
             it("should respond 400 when encryption file does not exist", function()
-
-                local success, response = pcall(function()
+                local _, response = pcall(function()
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "escher",
                         config = { encryption_key_path = "/non-existing-file.txt" }
                     })
                 end)
 
-                assert.are.equal(400, response.status)
+                assert.is_equal(400, response.status)
+                assert.is_equal("Encryption key file could not be found.", response.body.fields.config["@entity"][1])
             end)
 
             it("should respond 400 when encryption file path does not equal with the other escher plugin configurations", function()
-
                 local other_service = kong_sdk.services:create({
                     name = "second",
                     url = "http://mockbin:8080/request"
                 })
 
-                kong_sdk.routes:create_for_service(other_service.id, "/")
-
                 local f = io.open("/tmp/other_secret.txt", "w")
                 f:close()
 
                 kong_sdk.plugins:create({
-                    service_id = service.id,
+                    service = { id = service.id },
                     name = "escher",
                     config = { encryption_key_path = "/secret.txt" }
                 })
 
-                local success, response = pcall(function()
+                local _, response = pcall(function()
                     kong_sdk.plugins:create({
-                        service_id = other_service.id,
+                        service = { id = other_service.id },
                         name = "escher",
                         config = { encryption_key_path = "/tmp/other_secret.txt" }
                     })
                 end)
 
-                assert.are.equal(400, response.status)
-            end)
-
-            it("should indicate failure when message_template is not a valid JSON", function()
-
-                local success, response = pcall(function()
-                    kong_sdk.plugins:create({
-                        service_id = service.id,
-                        name = "escher",
-                        config = { message_template = "not a JSON" }
-                    })
-                end)
-
-                assert.are.equal(400, response.status)
-                assert.are.equal("message_template should be valid JSON object", response.body["config.message_template"])
-            end)
-
-            it("should indicate failure when status code is not in the HTTP status range", function()
-
-                local success, response = pcall(function()
-                    kong_sdk.plugins:create({
-                        service_id = service.id,
-                        name = "escher",
-                        config = { status_code = 600 }
-                    })
-                end)
-
-                assert.are.equal(400, response.status)
-                assert.are.equal("status code is invalid", response.body["config.status_code"])
+                assert.is_equal(400, response.status)
+                assert.is_equal("All Escher plugins must be configured to use the same encryption file.", response.body.fields.config["@entity"][1])
             end)
         end)
 
-        it("should use dafaults configs aren't provided", function()
+        context("when message_template field is set", function()
+            local test_cases = {'{"almafa": %s}', '""', '[{"almafa": "%s"}]'}
+            for _, test_template in ipairs(test_cases) do
+                it("should throw error when message_template is not valid JSON object", function()
+                    local _, response = pcall(function()
+                        kong_sdk.plugins:create({
+                            service = { id = service.id },
+                            name = "escher",
+                            config = {
+                                encryption_key_path = "/secret.txt",
+                                message_template = test_template
+                            }
+                        })
+                    end)
 
-            local plugin = kong_sdk.plugins:create({
-                service_id = service.id,
-                name = "escher",
-                config = { encryption_key_path = "/secret.txt" }
-            })
+                    assert.is_equal(400, response.status)
+                    assert.is_equal("message_template should be valid JSON object", response.body.fields.config.message_template)
+                end)
+            end
+        end)
 
-            assert.are.equal('{"message": "%s"}', plugin.config.message_template)
-            assert.are.equal(401, plugin.config.status_code)
+        context("when status_code field is set", function()
+            it("should throw error when it is lower than 100", function()
+                local _, response = pcall(function()
+                    kong_sdk.plugins:create({
+                        service = { id = service.id },
+                        name = "escher",
+                        config = {
+                            encryption_key_path = "/secret.txt",
+                            status_code = 66
+                        }
+                    })
+                end)
+
+                assert.is_equal(400, response.status)
+                assert.is_equal("status code is invalid", response.body.fields.config.status_code)
+            end)
+            it("should throw error when it is higher than 600", function()
+                local _, response = pcall(function()
+                    kong_sdk.plugins:create({
+                        service = { id = service.id },
+                        name = "escher",
+                        config = {
+                            encryption_key_path = "/secret.txt",
+                            status_code = 666
+                        }
+                    })
+                end)
+
+                assert.is_equal(400, response.status)
+                assert.is_equal("status code is invalid", response.body.fields.config.status_code)
+            end)
+            it("should succeed when it is within the range", function()
+                local success, _ = pcall(function()
+                    return kong_sdk.plugins:create({
+                        service = { id = service.id },
+                        name = "escher",
+                        config = {
+                            encryption_key_path = "/secret.txt",
+                            status_code = 400
+                        }
+                    })
+                end)
+
+                assert.is_equal(true, success)
+            end)
         end)
     end)
 
-    describe("Authentication", function()
+    describe("#handler", function()
 
         local current_date = os.date("!%Y%m%dT%H%M%SZ")
 
@@ -179,6 +229,7 @@ describe("Plugin: escher (access) #e2e", function()
         local ems_auth_header_wrong_api_key = escher_wrong_api_key:generateHeader(request, {})
 
         context("when anonymous user does not allowed", function()
+
             local service, consumer
 
             before_each(function()
@@ -192,7 +243,7 @@ describe("Plugin: escher (access) #e2e", function()
                 kong_sdk.routes:create_for_service(service.id, "/")
 
                 kong_sdk.plugins:create({
-                    service_id = service.id,
+                    service = { id = service.id },
                     name = "escher",
                     config = { encryption_key_path = "/secret.txt" }
                 })
@@ -212,8 +263,8 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.are.equal(401, response.status)
-                assert.are.equal("The x-ems-date header is missing", response.body.message)
+                assert.is_equal(401, response.status)
+                assert.is_equal("The x-ems-date header is missing", response.body.message)
                 assert.are.same({ message = "The x-ems-date header is missing" }, response.body)
             end)
 
@@ -228,7 +279,7 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.are.equal(401, response.status)
+                assert.is_equal(401, response.status)
                 assert.are.same({ message = "Could not parse X-Ems-Auth header" }, response.body)
             end)
 
@@ -243,7 +294,7 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.are.equal(401, response.status)
+                assert.is_equal(401, response.status)
                 assert.are.same({ message = "Could not parse X-Ems-Date header" }, response.body)
             end)
 
@@ -270,7 +321,7 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.are.equal(200, response.status)
+                assert.is_equal(200, response.status)
             end)
 
             it("responds with status 401 when api key was not found", function()
@@ -284,7 +335,7 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.are.equal(401, response.status)
+                assert.is_equal(401, response.status)
                 assert.are.same({ message = "Invalid Escher key" }, response.body)
             end)
         end)
@@ -308,9 +359,12 @@ describe("Plugin: escher (access) #e2e", function()
                 })
 
                 kong_sdk.plugins:create({
-                    service_id = service.id,
+                    service = { id = service.id },
                     name = "escher",
-                    config = { anonymous = anonymous.id, encryption_key_path = "/secret.txt" }
+                    config = {
+                        anonymous = anonymous.id,
+                        encryption_key_path = "/secret.txt"
+                    }
                 })
 
                 consumer = kong_sdk.consumers:create({
@@ -327,7 +381,7 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.are.equal(200, response.status)
+                assert.is_equal(200, response.status)
             end)
 
             it("should proxy the request with anonymous when X-EMS-AUTH header is invalid", function()
@@ -341,8 +395,8 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.are.equal(200, response.status)
-                assert.are.equal("anonymous", response.body.headers["x-consumer-username"])
+                assert.is_equal(200, response.status)
+                assert.is_equal("anonymous", response.body.headers["x-consumer-username"])
             end)
 
             it("should proxy the request with proper user when X-EMS-AUTH header is valid", function()
@@ -368,8 +422,8 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.are.equal(200, response.status)
-                assert.are.equal("TestUser", response.body.headers["x-consumer-username"])
+                assert.is_equal(200, response.status)
+                assert.is_equal("TestUser", response.body.headers["x-consumer-username"])
             end)
 
             it("responds with status 200 when api key was not found", function()
@@ -383,7 +437,7 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.are.equal(200, response.status)
+                assert.is_equal(200, response.status)
             end)
         end)
 
@@ -402,9 +456,12 @@ describe("Plugin: escher (access) #e2e", function()
                 kong_sdk.routes:create_for_service(service.id, "/")
 
                 kong_sdk.plugins:create({
-                    service_id = service.id,
+                    service = { id = service.id },
                     name = "escher",
-                    config = { encryption_key_path = "/secret.txt", message_template = '{"custom-message": "%s"}' }
+                    config = {
+                        encryption_key_path = "/secret.txt",
+                        message_template = '{"custom-message": "%s"}'
+                    }
                 })
             end)
 
@@ -414,11 +471,11 @@ describe("Plugin: escher (access) #e2e", function()
                     path = "/request"
                 })
 
-                assert.are.equal(401, response.status)
+                assert.is_equal(401, response.status)
 
                 assert.is_nil(response.body.message)
                 assert.not_nil(response.body["custom-message"])
-                assert.are.equal("The x-ems-date header is missing", response.body["custom-message"])
+                assert.is_equal("The x-ems-date header is missing", response.body["custom-message"])
             end)
 
         end)
@@ -477,8 +534,10 @@ describe("Plugin: escher (access) #e2e", function()
             context("and strict header signing is off", function()
 
                 before_each(function()
+                    kong_helpers.db.plugins:truncate()
+
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "escher",
                         config = {
                             encryption_key_path = "/secret.txt",
@@ -499,7 +558,7 @@ describe("Plugin: escher (access) #e2e", function()
                         }
                     }))
 
-                    assert.are.equal(200, response.status)
+                    assert.is_equal(200, response.status)
                 end)
 
                 it("should reject request when header is not signed", function()
@@ -513,8 +572,8 @@ describe("Plugin: escher (access) #e2e", function()
                         }
                     }))
 
-                    assert.are.equal(401, response.status)
-                    assert.are.equal("The X-Suite-CustomerId header is not signed", response.body.message)
+                    assert.is_equal(401, response.status)
+                    assert.is_equal("The X-Suite-CustomerId header is not signed", response.body.message)
                 end)
 
                 it("should allow request when header is not present", function()
@@ -527,7 +586,7 @@ describe("Plugin: escher (access) #e2e", function()
                         }
                     }))
 
-                    assert.are.equal(200, response.status)
+                    assert.is_equal(200, response.status)
                 end)
 
             end)
@@ -535,8 +594,10 @@ describe("Plugin: escher (access) #e2e", function()
             context("and strict header signing is on", function()
 
                 before_each(function()
+                    kong_helpers.db.plugins:truncate()
+
                     kong_sdk.plugins:create({
-                        service_id = service.id,
+                        service = { id = service.id },
                         name = "escher",
                         config = {
                             encryption_key_path = "/secret.txt",
@@ -556,8 +617,8 @@ describe("Plugin: escher (access) #e2e", function()
                         }
                     }))
 
-                    assert.are.equal(401, response.status)
-                    assert.are.equal("The X-Suite-CustomerId header is not signed", response.body.message)
+                    assert.is_equal(401, response.status)
+                    assert.is_equal("The X-Suite-CustomerId header is not signed", response.body.message)
                 end)
 
             end)
@@ -579,9 +640,12 @@ describe("Plugin: escher (access) #e2e", function()
                 kong_sdk.routes:create_for_service(service.id, "/")
 
                 kong_sdk.plugins:create({
-                    service_id = service.id,
+                    service = { id = service.id },
                     name = "escher",
-                    config = { encryption_key_path = "/secret.txt", status_code = 400 }
+                    config = {
+                        encryption_key_path = "/secret.txt",
+                        status_code = 400
+                    }
                 })
             end)
 
@@ -591,12 +655,15 @@ describe("Plugin: escher (access) #e2e", function()
                     path = "/request"
                 })
 
-                assert.are.equal(400, response.status)
+                assert.is_equal(400, response.status)
             end)
 
         end)
 
         context("when Escher returns debug info", function()
+
+            local service
+
             before_each(function()
                 kong_helpers.db:truncate()
 
@@ -608,7 +675,7 @@ describe("Plugin: escher (access) #e2e", function()
                 kong_sdk.routes:create_for_service(service.id, "/")
 
                 kong_sdk.plugins:create({
-                    service_id = service.id,
+                    service = { id = service.id },
                     name = "escher",
                     config = { encryption_key_path = "/secret.txt" }
                 })
@@ -642,12 +709,12 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.are.equal(401, response.status)
+                assert.is_equal(401, response.status)
 
                 local encoded_message = response.body.message:match("The signatures do not match %(Base64 encoded debug message: '(.-)'%)")
                 local debug_message = encoded_message and base64.decode(encoded_message) or nil
 
-                assert.are.equal("string", type(debug_message))
+                assert.is_equal("string", type(debug_message))
             end)
 
             it("should not append debug message if x-ems-debug is missing", function()
@@ -661,8 +728,8 @@ describe("Plugin: escher (access) #e2e", function()
                     }
                 })
 
-                assert.are.equal(401, response.status)
-                assert.are.equal("The signatures do not match", response.body.message)
+                assert.is_equal(401, response.status)
+                assert.is_equal("The signatures do not match", response.body.message)
             end)
         end)
 
