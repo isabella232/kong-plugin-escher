@@ -9,6 +9,7 @@ describe("EncryptionKeyPathRetriever #e2e", function()
 
     setup(function()
         kong_helpers.start_kong({ plugins = "escher" })
+
         kong_sdk = test_helpers.create_kong_client()
     end)
 
@@ -26,7 +27,6 @@ describe("EncryptionKeyPathRetriever #e2e", function()
     end)
 
     describe("#find_key_path", function()
-
         it("should return nil when no escher plugin is added", function()
             local key_retriever = EncryptionKeyPathRetriever(kong_helpers.db)
 
@@ -43,6 +43,5 @@ describe("EncryptionKeyPathRetriever #e2e", function()
 
             assert.is.equal("/secret.txt", key_retriever:find_key_path())
         end)
-
     end)
 end)
