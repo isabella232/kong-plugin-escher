@@ -36,8 +36,6 @@ build = {
     ["kong.plugins.escher.key_db"] = "kong/plugins/escher/key_db.lua",
     ["kong.plugins.escher.plugin_config"] = "kong/plugins/escher/plugin_config.lua",
     ["kong.plugins.escher.request_elements"] = "kong/plugins/escher/request_elements.lua",
-    ["kong.plugins.escher.schema"] = "kong/plugins/escher/schema.lua",
-    ["kong.plugins.escher.migrations.cassandra"] = "kong/plugins/escher/migrations/cassandra.lua",
-    ["kong.plugins.escher.migrations.postgres"] = "kong/plugins/escher/migrations/postgres.lua"
+    ["kong.plugins.escher.schema"] = "kong/plugins/escher/schema.lua"
   }
 }
