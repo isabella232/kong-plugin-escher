@@ -335,12 +335,38 @@ describe("Escher #plugin #handler #e2e", function()
                         require_additional_headers_to_be_signed = false
                     }
                 })
+
+                send_admin_request({
+                    method = "POST",
+                    path = "/consumers/" .. consumer.id .. "/escher_key",
+                    body = {
+                        key = "test_key",
+                        secret = "test_secret"
+                    },
+                    headers = {
+                        ["Content-Type"] = "application/json"
+                    }
+                })
             end)
 
             it("should allow request when header is signed", function()
                 local response = send_request(sign_request({
                     method = "GET",
                     path = "/request",
+                    additional_headers_to_sign = { "X-Suite-CustomerId" },
+                    headers = {
+                        ["Host"] = "test1.com",
+                        ["X-Suite-CustomerId"] = "12345678"
+                    }
+                }))
+
+                assert.are.equals(200, response.status)
+            end)
+
+            it("should allow request with query params when header is signed", function()
+                local response = send_request(sign_request({
+                    method = "GET",
+                    path = "/request?a=b",
                     additional_headers_to_sign = { "X-Suite-CustomerId" },
                     headers = {
                         ["Host"] = "test1.com",

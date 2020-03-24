@@ -56,7 +56,7 @@ describe("escher plugin", function()
                 }
             },
             request = {
-                get_path = function()
+                get_path_with_query = function()
                     return "request_uri"
                 end,
                 get_method = function()

@@ -11,6 +11,9 @@ describe("Request Elements", function()
                 get_path = function()
                     return ""
                 end,
+                get_path_with_query = function()
+                    return "/?a=b"
+                end,
                 get_method = function()
                     return "GET"
                 end,
@@ -31,7 +34,7 @@ describe("Request Elements", function()
 
             local expected = {
                 ["method"] = "GET",
-                ["url"] = "",
+                ["url"] = "/?a=b",
                 ["headers"] = { ["X-Test-Header"] = "Some Content", },
                 ["body"] = ""
             }
