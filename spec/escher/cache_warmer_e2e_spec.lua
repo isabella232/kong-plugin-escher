@@ -47,7 +47,15 @@ describe("CacheWarmer #e2e", function()
             })
 
             assert.are.equals(200, response.status)
-            assert.are.equals("suite_test-integration_v1", response.body.key)
+            assert.are.same(
+                {
+                    consumer = { id = consumer.id },
+                    id = wsse_credential.id,
+                    secret = wsse_credential.secret,
+                    key = "suite_test-integration_v1"
+                },
+                response.body
+            )
         end)
     end)
 end)

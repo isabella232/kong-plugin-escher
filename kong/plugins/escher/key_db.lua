@@ -3,13 +3,23 @@ local Object = require "classic"
 
 local KeyDb = Object:extend()
 
+local function fix_consumer_reference(escher_key)
+  if escher_key then
+      escher_key.consumer = {
+          id = escher_key.consumer_id
+      }
+      escher_key.consumer_id = nil
+  end
+  return escher_key
+end
+
 local function load_credential(key)
     local escher_keys, err = kong.db.connector:query(string.format("SELECT * FROM escher_keys WHERE key = '%s'", key))
     if err then
         return nil, err
     end
 
-    return escher_keys[1]
+    return fix_consumer_reference(escher_keys[1])
 end
 
 function KeyDb:new(crypto)

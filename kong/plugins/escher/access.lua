@@ -66,7 +66,7 @@ function Access.execute(conf)
     if credentials then
         Logger.getInstance(ngx):logInfo({ msg = "Escher authentication was successful.", ["x-ems-auth"] = request.headers["x-ems-auth"] })
 
-        local consumer = ConsumerDb.find_by_id(credentials.consumer_id)
+        local consumer = ConsumerDb.find_by_id(credentials.consumer.id)
 
         set_consumer(consumer)
 

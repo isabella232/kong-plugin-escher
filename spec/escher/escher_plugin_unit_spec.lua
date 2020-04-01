@@ -26,7 +26,7 @@ describe("escher plugin", function()
     local test_escher_key = {
         key = "test_key",
         secret = "test_secret",
-        consumer_id = "0001-1234"
+        consumer = { id = "0001-1234" }
     }
 
     ConsumerDb.find_by_id = function(consumer_id)
