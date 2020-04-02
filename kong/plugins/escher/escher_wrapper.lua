@@ -38,10 +38,10 @@ function EscherWrapper:authenticate(request, mandatory_headers_to_sign)
     local headers_as_array = parse_headers(request_headers)
 
     local transformed_request = {
-        ["method"] = request.method,
-        ["url"] = request.url,
-        ["headers"] = headers_as_array,
-        ["body"] = request.body
+        method = request.method,
+        url = request.url,
+        headers = headers_as_array,
+        body = request.body
     }
 
     local api_key, err, debug_info = escher:authenticate(transformed_request, key_retriever(self.key_db), mandatory_headers_to_sign)

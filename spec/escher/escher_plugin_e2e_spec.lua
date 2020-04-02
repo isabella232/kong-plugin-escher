@@ -2,6 +2,7 @@ local kong_helpers = require "spec.helpers"
 local test_helpers = require "kong_client.spec.test_helpers"
 local Escher = require "escher"
 local base64 = require "base64"
+local cjson = require "cjson"
 
 local current_date = os.date("!%Y%m%dT%H%M%SZ")
 
@@ -317,7 +318,8 @@ describe("Escher #plugin #handler #e2e", function()
             request.headers["X-Ems-Auth"] = escher:generateHeader({
                 method = request.method,
                 url = request.path,
-                headers = headers_to_array(request.headers)
+                headers = headers_to_array(request.headers),
+                body = request.body and cjson.encode(request.body) or ""
             }, request.additional_headers_to_sign)
 
             return request
@@ -357,6 +359,23 @@ describe("Escher #plugin #handler #e2e", function()
                     headers = {
                         ["Host"] = "test1.com",
                         ["X-Suite-CustomerId"] = "12345678"
+                    }
+                }))
+
+                assert.are.equals(200, response.status)
+            end)
+
+            it("should allow request when POST has payload", function()
+                local response = send_request(sign_request({
+                    method = "POST",
+                    path = "/request",
+                    additional_headers_to_sign = { "X-Suite-CustomerId" },
+                    headers = {
+                        ["Host"] = "test1.com",
+                        ["X-Suite-CustomerId"] = "12345678"
+                    },
+                    body = {
+                        foo = "bar"
                     }
                 }))
 

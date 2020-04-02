@@ -20,7 +20,7 @@ describe("Request Elements", function()
                 get_headers = function()
                     return { ["X-Test-Header"] = "Some Content", }
                 end,
-                get_body = function()
+                get_raw_body = function()
                     return ""
                 end
             }

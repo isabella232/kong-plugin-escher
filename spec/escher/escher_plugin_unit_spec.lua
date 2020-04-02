@@ -65,7 +65,9 @@ describe("escher plugin", function()
                 get_headers = function()
                     return kong_service_request_headers
                 end,
-                get_body = function() end
+                get_raw_body = function()
+                    return ""
+                end
             }
         }
 
